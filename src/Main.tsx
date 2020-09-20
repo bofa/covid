@@ -21,48 +21,6 @@ export const convertArrayToObject = (array: any[], key: string | number) => {
   }, initialValue);
 };
 
-export function massageJson (urls: string[]) {
-  // https://eu-evs.com/get_overall_stats_for_charts.php?year=2020&quarter=0&country=Norway
-
-  return Promise.all(urls.map(url => axios.get(url)))
-    .then(r => { console.log('r', r); return r; })
-    .then((response: any[]) => response.reduce((a, b) => a.concat(b.data), []))
-    .then(data => data as { BRAND: string, DATE: string, QUANTITY: string }[])
-    .then(data => data
-      .map(d => ({
-        t: moment(d.DATE),
-        y: Number(d.QUANTITY),
-        g: d.BRAND,
-        month: moment(d.DATE).startOf('month').valueOf()
-      }))
-      .sort((d1, d2) => d1.t.valueOf() - d2.t.valueOf())
-      // Group by brand
-      .reduce((acc: { [x: string]: { t: any; y: any; }[]; }, v) => {
-        if (acc[v.g] === undefined) {
-          acc[v.g] = [v];
-        } else {
-          acc[v.g].push(v);
-        }
-
-        return acc;
-      }, {}))
-    .then((data: any) => Object.keys(data).map(key => ({
-      label: key,
-      data: data[key]
-      .reduce((acc: any[], v: any) => {
-        if (acc.length === 0 || acc[acc.length - 1].month !== v.month) {
-          acc.push(v);
-        } else {
-          acc[acc.length - 1].y += v.y;
-        }
-
-        return acc;
-      }, []),
-    })));
-}
-
-// https://docs.google.com/spreadsheets/d/1l50qi3FAue2zqMOtc-vdGbXBWpb0I4lKByqUaz2nuFs/edit?usp=sharing
-
 interface MainProps {
 }
 
@@ -87,13 +45,16 @@ export class Main extends React.Component<MainProps> {
     //     "QUANTITY": "5"
     // },
 
-    massageJson(['norway2018.json', 'norway2019.json', 'norway2020.json'])
+    axios.get('norway.json')
+      .then(reponse => reponse.data)
       .then(norway => this.setState({ norway }));
 
-    massageJson(['netherlands2018.json', 'netherlands2019.json', 'netherlands2020.json'])
+    axios.get('netherlands.json')
+      .then(reponse => reponse.data)
       .then(netherlands => this.setState({ netherlands }));
 
-    massageJson(['spain2018.json', 'spain2019.json', 'spain2020.json'])
+    axios.get('spain.json')
+      .then(reponse => reponse.data)
       .then(spain => this.setState({ spain }));
 
     axios

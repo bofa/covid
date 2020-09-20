@@ -1,6 +1,7 @@
 // tslint:disable: jsx-wrap-multiline
 
 import * as React from 'react';
+import * as moment from 'moment';
 // import { Line } from 'react-chartjs-2';
 import 'chartjs-plugin-annotation';
 import { Line } from 'react-chartjs-2';
