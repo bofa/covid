@@ -33,6 +33,8 @@ export default function Chart(props: ChartProps) {
   // const { analyses, chartItems } = props;
 
   const options = {
+    responsive: true,
+    maintainAspectRatio: false,
     scales: {
       xAxes: [{
         type: 'time'
