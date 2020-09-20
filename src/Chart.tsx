@@ -43,11 +43,8 @@ export default function Chart(props: ChartProps) {
     }
   };
 
-  const remove = ['total', 'totalnonebev', 'totalbev'];
-
   const formattedSeries: ChartData = {
     datasets: props.series
-      .filter(({ label }) => !remove.includes(label))
       .map((s, i) => ({
         fill: false,
         // backgroundColor: rgba(i),
