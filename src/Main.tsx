@@ -38,13 +38,6 @@ export class Main extends React.Component<MainProps> {
   constructor(props: MainProps) {
     super(props);
 
-    // [
-    //   {
-    //     "BRAND": "NISSAN",
-    //     "DATE": "2020-01-01",
-    //     "QUANTITY": "5"
-    // },
-
     axios.get('norway.json')
       .then(reponse => reponse.data)
       .then(norway => this.setState({ norway }));

@@ -33,19 +33,22 @@ function massageJson (urls: string[], jsonData: any[]) {
   
           return acc;
         }, {}))
-      .then((data: any) => Object.keys(data).map(key => ({
-        label: key,
-        data: data[key]
-        .reduce((acc: any[], v: any) => {
-          if (acc.length === 0 || acc[acc.length - 1].month !== v.month) {
-            acc.push(v);
-          } else {
-            acc[acc.length - 1].y += v.y;
-          }
-  
-          return acc;
-        }, []),
-      })));
+      .then((data: any) => Object.keys(data)
+        .map(key => ({
+            label: key,
+            data: data[key]
+                .reduce((acc: any[], v: any) => {
+                if (acc.length === 0 || acc[acc.length - 1].month !== v.month) {
+                    acc.push(v);
+                } else {
+                    acc[acc.length - 1].y += v.y;
+                }
+        
+                return acc;
+                }, [])
+        }))
+        .filter((s: any) => s.data.reduce((sum: number, v: any) => sum + v.y, 0) > 500)
+      );
 }
 
 // console.log('norway2018', norway2018);
