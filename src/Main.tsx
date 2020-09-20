@@ -21,6 +21,46 @@ export const convertArrayToObject = (array: any[], key: string | number) => {
   }, initialValue);
 };
 
+export function massageJson (urls: string[]) {
+  // https://eu-evs.com/get_overall_stats_for_charts.php?year=2020&quarter=0&country=Norway
+
+  return Promise.all(urls.map(url => axios.get(url)))
+    .then(r => { console.log('r', r); return r; })
+    .then((response: any[]) => response.reduce((a, b) => a.concat(b.data), []))
+    .then(data => data as { BRAND: string, DATE: string, QUANTITY: string }[])
+    .then(data => data
+      .map(d => ({
+        t: moment(d.DATE),
+        y: Number(d.QUANTITY),
+        g: d.BRAND,
+        month: moment(d.DATE).startOf('month').valueOf()
+      }))
+      .sort((d1, d2) => d1.t.valueOf() - d2.t.valueOf())
+      // Group by brand
+      .reduce((acc: { [x: string]: { t: any; y: any; }[]; }, v) => {
+        if (acc[v.g] === undefined) {
+          acc[v.g] = [v];
+        } else {
+          acc[v.g].push(v);
+        }
+
+        return acc;
+      }, {}))
+    .then((data: any) => Object.keys(data).map(key => ({
+      label: key,
+      data: data[key]
+      .reduce((acc: any[], v: any) => {
+        if (acc.length === 0 || acc[acc.length - 1].month !== v.month) {
+          acc.push(v);
+        } else {
+          acc[acc.length - 1].y += v.y;
+        }
+
+        return acc;
+      }, []),
+    })));
+}
+
 // https://docs.google.com/spreadsheets/d/1l50qi3FAue2zqMOtc-vdGbXBWpb0I4lKByqUaz2nuFs/edit?usp=sharing
 
 interface MainProps {
@@ -29,10 +69,12 @@ interface MainProps {
 export class Main extends React.Component<MainProps> {
     
   state = {
-    group: 'models' as 'models' | 'segment' | 'norway',
+    group: 'models' as string,
     smooth: 12,
     series: [] as Series[],
     norway: [] as Series[],
+    netherlands: [] as Series[],
+    spain: [] as Series[],
   };
 
   constructor(props: MainProps) {
@@ -45,47 +87,14 @@ export class Main extends React.Component<MainProps> {
     //     "QUANTITY": "5"
     // },
 
-    const norway2018$ = axios.get('norway2018.json');
-    const norway2019$ = axios.get('norway2019.json');
-    const norway2020$ = axios.get('norway2020.json');
+    massageJson(['norway2018.json', 'norway2019.json', 'norway2020.json'])
+      .then(norway => this.setState({ norway }));
 
-    // https://eu-evs.com/get_overall_stats_for_charts.php?year=2020&quarter=0&country=Norway
+    massageJson(['netherlands2018.json', 'netherlands2019.json', 'netherlands2020.json'])
+      .then(netherlands => this.setState({ netherlands }));
 
-    Promise.all([norway2018$, norway2019$, norway2020$])
-      .then(r => { console.log('r', r); return r; })
-      .then((response: any[]) => response.reduce((a, b) => a.concat(b.data), []))
-      .then(data => data as { BRAND: string, DATE: string, QUANTITY: string }[])
-      .then(data => data
-        .map(d => ({
-          t: moment(d.DATE),
-          y: Number(d.QUANTITY),
-          g: d.BRAND,
-          month: moment(d.DATE).startOf('month').valueOf()
-        }))
-        .sort((d1, d2) => d1.t.valueOf() - d2.t.valueOf())
-        // Group by brand
-        .reduce((acc: { [x: string]: { t: any; y: any; }[]; }, v) => {
-          if (acc[v.g] === undefined) {
-            acc[v.g] = [v];
-          } else {
-            acc[v.g].push(v);
-          }
-
-          return acc;
-        }, {}))
-      .then((data: any) => this.setState({ norway: Object.keys(data).map(key => ({
-        label: key,
-        data: data[key]
-        .reduce((acc: any[], v: any) => {
-          if (acc.length === 0 || acc[acc.length - 1].month !== v.month) {
-            acc.push(v);
-          } else {
-            acc[acc.length - 1].y += v.y;
-          }
-
-          return acc;
-        }, []),
-      }))}));
+    massageJson(['spain2018.json', 'spain2019.json', 'spain2020.json'])
+      .then(spain => this.setState({ spain }));
 
     axios
       .get('https://spreadsheets.google.com/feeds/list/1l50qi3FAue2zqMOtc-vdGbXBWpb0I4lKByqUaz2nuFs/1/public/basic?alt=json')
@@ -158,6 +167,12 @@ export class Main extends React.Component<MainProps> {
       case 'norway':
         filteredData = this.state.norway;
         break;
+      case 'netherlands':
+        filteredData = this.state.netherlands;
+        break;
+      case 'spain':
+        filteredData = this.state.spain;
+        break;
       default: break;
     }
 
@@ -178,6 +193,8 @@ export class Main extends React.Component<MainProps> {
                 <option value="models">Sweden Models</option>
                 <option value="segment">Sweden Segment</option>
                 <option value="norway">Norway</option>
+                <option value="netherlands">Netherlands</option>
+                <option value="spain">Spain</option>
               </select>
             </div>
           </FormGroup>
