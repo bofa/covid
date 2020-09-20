@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as moment from 'moment';
 import axios from 'axios';
 import Chart from './Chart';
+import { FormGroup } from '@blueprintjs/core';
 
 export const convertArrayToObject = (array: any[], key: string | number) => {
   const initialValue = {};
@@ -15,25 +16,13 @@ export const convertArrayToObject = (array: any[], key: string | number) => {
 
 // https://docs.google.com/spreadsheets/d/1l50qi3FAue2zqMOtc-vdGbXBWpb0I4lKByqUaz2nuFs/edit?usp=sharing
 
-// import { defaultGraphStyle, GraphType } from './Chart';
-// import {
-//   InputGroup,
-//   Navbar, 
-//   NavbarGroup, 
-//   NavbarHeading, 
-//   NavbarDivider, 
-//   Alignment, 
-//   Popover, 
-//   Position, 
-//   Button, 
-// } from '@blueprintjs/core';
-
 interface MainProps {
 }
 
 export class Main extends React.Component<MainProps> {
     
   state = {
+    smooth: 12,
     series: [] as { label: string, data: { t: moment.Moment, y: number }[]}[]
   };
 
@@ -92,8 +81,27 @@ export class Main extends React.Component<MainProps> {
     }));
     
     return (
-      <div style={{ padding: 15 }}>
-        <Chart series={filteredData} smooth={12} />
+      <div style={{ padding: 15, height: window.innerHeight - 100 }}>
+        <FormGroup
+          label="Smoothing"
+          helperText="Interval too accumulate over"
+          labelFor="select"
+        >
+          <div className="bp3-select">
+            <select
+              value={this.state.smooth}
+              onChange={e => this.setState({ smooth: e.target.value })}  
+            >
+              <option value={1}>Month</option>
+              <option value={3}>Quater</option>
+              <option value={6}>Half Year</option>
+              <option value={12}>Year</option>
+              <option value={24}>Two Years</option>
+              <option value={1000}>Cumulative</option>
+            </select>
+          </div>
+        </FormGroup>
+        <Chart series={filteredData} smooth={this.state.smooth} />
       </div>
     );
   }

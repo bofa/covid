@@ -7,8 +7,8 @@ import { Line } from 'react-chartjs-2';
 import { ChartData } from 'chart.js';
 
 export function rgba(index: number, alpha: number = 0.6) {
-  const o = Math.round, r = Math.random, s = 255;
-  return 'rgba(' + o(r() * s) + ',' + o(r() * s) + ',' + o(r() * s) + ',' + alpha + ')';
+  const o = Math.round, r = (seed: number) => Math.sin(seed * index) ** 2, s = 255;
+  return 'rgba(' + o(r(1) * s) + ',' + o(r(2) * s) + ',' + o(r(3) * s) + ',' + alpha + ')';
 }
 
 export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
