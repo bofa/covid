@@ -27,6 +27,7 @@ export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
 
 interface ChartProps {
   series: { label: string, data: { t: moment.Moment, y: number }[]}[];
+  smooth: number;
 }
 
 export default function Chart(props: ChartProps) {
@@ -40,17 +41,7 @@ export default function Chart(props: ChartProps) {
         type: 'time'
       }]
     }
-    // type: 'line',
   };
-
-  // return (
-  //   <div>
-  //     hej Chart!
-  //   </div>
-  // );
-
-  // const color = (i: number) => Math.floor((Math.abs(Math.sin(i) * 16777215)) % 16777215).toString(16);
-  // console.log('color', color(0));
 
   const remove = ['total', 'totalnonebev', 'totalbev'];
 
@@ -62,7 +53,7 @@ export default function Chart(props: ChartProps) {
         // backgroundColor: rgba(i),
         borderColor: rgba(i),
         label: s.label,
-        data: smooth(s.data, 6)
+        data: smooth(s.data, props.smooth)
       }))
   };
 

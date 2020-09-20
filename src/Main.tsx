@@ -67,7 +67,6 @@ export class Main extends React.Component<MainProps> {
 
             return acc;
           }, {})
-          // .filter((row: any) => row[0].length > 0);
           ;
 
         const dataList = Object.keys(dataObj).map(key => ({
@@ -85,8 +84,17 @@ export class Main extends React.Component<MainProps> {
   }
 
   render() {
+
+    // Remove duplicates
+    const filteredData = this.state.series.map(s => ({
+      ...s,
+      data: s.data.filter((d1, i) => s.data.findIndex(d2 => d1.t.valueOf() === d2.t.valueOf()) === i)
+    }));
+    
     return (
-      <Chart series={this.state.series} />
+      <div style={{ padding: 15 }}>
+        <Chart series={filteredData} smooth={12} />
+      </div>
     );
   }
 }
