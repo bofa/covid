@@ -25,8 +25,13 @@ export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
   return output;
 }
 
+export interface Series {
+  label: string;
+  data: { t: moment.Moment, y: number }[];
+}
+
 interface ChartProps {
-  series: { label: string, data: { t: moment.Moment, y: number }[]}[];
+  series: Series[];
   smooth: number;
 }
 

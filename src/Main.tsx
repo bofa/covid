@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as moment from 'moment';
 import axios from 'axios';
-import Chart from './Chart';
+import Chart, { Series } from './Chart';
 import { FormGroup } from '@blueprintjs/core';
 // import GridLayout from 'react-grid-layout';
 import { Responsive, WidthProvider } from 'react-grid-layout';
@@ -29,13 +29,63 @@ interface MainProps {
 export class Main extends React.Component<MainProps> {
     
   state = {
-    group: 'models' as 'models' | 'segment',
+    group: 'models' as 'models' | 'segment' | 'norway',
     smooth: 12,
-    series: [] as { label: string, data: { t: moment.Moment, y: number }[]}[]
+    series: [] as Series[],
+    norway: [] as Series[],
   };
 
   constructor(props: MainProps) {
     super(props);
+
+    // [
+    //   {
+    //     "BRAND": "NISSAN",
+    //     "DATE": "2020-01-01",
+    //     "QUANTITY": "5"
+    // },
+
+    const norway2018$ = axios.get('norway2018.json');
+    const norway2019$ = axios.get('norway2019.json');
+    const norway2020$ = axios.get('norway2020.json');
+
+    // https://eu-evs.com/get_overall_stats_for_charts.php?year=2020&quarter=0&country=Norway
+
+    Promise.all([norway2018$, norway2019$, norway2020$])
+      .then(r => { console.log('r', r); return r; })
+      .then((response: any[]) => response.reduce((a, b) => a.concat(b.data), []))
+      .then(data => data as { BRAND: string, DATE: string, QUANTITY: string }[])
+      .then(data => data
+        .map(d => ({
+          t: moment(d.DATE),
+          y: Number(d.QUANTITY),
+          g: d.BRAND,
+          month: moment(d.DATE).startOf('month').valueOf()
+        }))
+        .sort((d1, d2) => d1.t.valueOf() - d2.t.valueOf())
+        // Group by brand
+        .reduce((acc: { [x: string]: { t: any; y: any; }[]; }, v) => {
+          if (acc[v.g] === undefined) {
+            acc[v.g] = [v];
+          } else {
+            acc[v.g].push(v);
+          }
+
+          return acc;
+        }, {}))
+      .then((data: any) => this.setState({ norway: Object.keys(data).map(key => ({
+        label: key,
+        data: data[key]
+        .reduce((acc: any[], v: any) => {
+          if (acc.length === 0 || acc[acc.length - 1].month !== v.month) {
+            acc.push(v);
+          } else {
+            acc[acc.length - 1].y += v.y;
+          }
+
+          return acc;
+        }, []),
+      }))}));
 
     axios
       .get('https://spreadsheets.google.com/feeds/list/1l50qi3FAue2zqMOtc-vdGbXBWpb0I4lKByqUaz2nuFs/1/public/basic?alt=json')
@@ -57,9 +107,11 @@ export class Main extends React.Component<MainProps> {
               const input = { t: moment(date), y: sales };
               if (acc[id] === undefined) {
                 acc[id] = [input];
+              } else {
+                acc[id].push(input);
               }
               
-              return acc[id].push(input);
+              return acc;
             });
 
             return acc;
@@ -82,20 +134,32 @@ export class Main extends React.Component<MainProps> {
 
   render() {
 
+    let filteredData: Series[] = [];
     let remove: (label: string) => boolean = () => true;
     switch (this.state.group) {
-      case 'models': remove = (label: string) => !['total', 'totalnonebev', 'totalbev'].includes(label); break;
-      case 'segment': remove = (label: string) => ['total', 'totalnonebev', 'totalbev'].includes(label); break;
+      case 'models': 
+        remove = (label: string) => !['total', 'totalnonebev', 'totalbev'].includes(label);
+        filteredData = this.state.series
+          .filter(({ label }) => label !== 'total' && remove(label))
+            .map(s => ({
+              ...s,
+              data: s.data
+            }));
+        break;
+      case 'segment': 
+        remove = (label: string) => ['total', 'totalnonebev', 'totalbev'].includes(label); 
+        filteredData = this.state.series
+          .filter(({ label }) => label !== 'total' && remove(label))
+            .map(s => ({
+              ...s,
+              data: s.data
+            })); 
+        break;
+      case 'norway':
+        filteredData = this.state.norway;
+        break;
       default: break;
     }
-
-    // Remove duplicates
-    const filteredData = this.state.series
-    .filter(({ label }) => label !== 'total' && remove(label))
-      .map(s => ({
-        ...s,
-        data: s.data.filter((d1, i) => s.data.findIndex(d2 => d1.t.valueOf() === d2.t.valueOf()) === i)
-      }));
 
     return (
       <div style={{ padding: 15, height: window.innerHeight - 100 }}>
@@ -111,8 +175,9 @@ export class Main extends React.Component<MainProps> {
                 value={this.state.group}
                 onChange={e => this.setState({ group: e.target.value })}  
               >
-                <option value="models">Models</option>
-                <option value="segment">Segment</option>
+                <option value="models">Sweden Models</option>
+                <option value="segment">Sweden Segment</option>
+                <option value="norway">Norway</option>
               </select>
             </div>
           </FormGroup>
@@ -138,50 +203,6 @@ export class Main extends React.Component<MainProps> {
             </div>
           </FormGroup>
         </ResponsiveGridLayout>
-        <Chart series={filteredData} smooth={this.state.smooth} />
-      </div>
-    );
-
-    return (
-      <div style={{ padding: 15, height: window.innerHeight - 100 }}>
-        <FormGroup
-          label="Smoothing"
-          helperText="Interval too accumulate over"
-          labelFor="select"
-        >
-          <div className="bp3-select">
-            <select
-              value={this.state.smooth}
-              onChange={e => this.setState({ smooth: e.target.value })}  
-            >
-              <option value={1}>Month</option>
-              <option value={3}>Quater</option>
-              <option value={6}>Half Year</option>
-              <option value={12}>Year</option>
-              <option value={24}>Two Years</option>
-              <option value={1000}>Cumulative</option>
-            </select>
-          </div>
-        </FormGroup>
-        <FormGroup
-          label="Smoothing"
-          helperText="Interval too accumulate over"
-          labelFor="select"
-        >
-          <div className="bp3-select">
-            <select
-              value={this.state.smooth}
-              onChange={e => this.setState({ smooth: e.target.value })}  
-            >
-              <option value={1}>Month</option>
-              <option value={3}>Quater</option>
-              <option value={6}>Half Year</option>
-              <option value={12}>Year</option>
-              <option value={24}>Two Years</option>
-              <option value={1000}>Cumulative</option>
-            </select>
-          </div>
-        </FormGroup>
         <Chart series={filteredData} smooth={this.state.smooth} />
       </div>
     );
