@@ -11,6 +11,8 @@ const spain2019 = require('./raw/spain2019');
 function massageJson (urls: string[], jsonData: any[]) {
     // https://eu-evs.com/get_overall_stats_for_charts.php?year=2020&quarter=0&country=Norway
   
+    const sumFunc = (s: any) => s.data.reduce((sum: number, v: any) => sum + v.y, 0);
+
     return Promise.all(urls.map(url => axios.get(url)))
     //   .then(r => { console.log('r', r); return r; })
       .then((response: any[]) => response.reduce((a, b) => a.concat(b.data), []).concat(jsonData))
@@ -47,7 +49,9 @@ function massageJson (urls: string[], jsonData: any[]) {
                 return acc;
                 }, [])
         }))
-        .filter((s: any) => s.data.reduce((sum: number, v: any) => sum + v.y, 0) > 500)
+        .sort((s1, s2) => sumFunc(s2) - sumFunc(s1))
+        .filter((s: any, i) => i < 8)
+        // .filter((s: any) => sumFunc(s) > 1000)
       );
 }
 

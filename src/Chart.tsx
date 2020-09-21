@@ -60,5 +60,7 @@ export default function Chart(props: ChartProps) {
       }))
   };
 
+  console.log('props', formattedSeries);
+
   return <Line data={formattedSeries} options={options} />;
 }
