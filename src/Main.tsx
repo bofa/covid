@@ -38,73 +38,14 @@ export class Main extends React.Component<MainProps> {
     regions: [],
   };
 
-  constructor(props: MainProps) {
-    super(props);
-
-    // 1JRY_Ge9cS0AVgSQ1NcCgb7zXL_bKuKxug-2buM3pgWI
-    
-    // axios
-    // .get('https://docs.google.com/spreadsheets/d/e/
-    // 2PACX-1vR69RO9V00Rkd9dJrD8hxW4B86D1Mdq3yLSm1_67pUhjQcys6lXeu0tGkjTCP4gRi5Ez06ZDkFrPSDF/pub?output=csv')
-    //   .then(reponse => console.log('response', reponse.data));
-
-    // axios.get('https://yacdn.org/serve/https://datagraver.com/corona/data/cases.csv?time=1600861091380')
-    //   .then(reponse => console.log('gurkburk', reponse));
-
-      // .then(arg => console.log('arg', csvParse(arg.data, undefined, (data) => console.log('done', data))));
-    //   .then(response => {
-    //     const dataObj = response.data.feed.entry;
-    //     //   .map((row: any) => [row.title['$t'],
-    //     //     // convertArrayToObject(
-    //     //       row.content['$t']
-    //     //       .replace(/ /g, '')
-    //     //       // .split(' ').join()
-    //     //       .split(',')
-    //     //       .map((r: any) => r.split(':'))
-    //     //       .map((r: any) => [r[0], Number(r[1])])
-    //     //       .filter((r: any) => !isNaN(r[1]))
-    //     //     // , 0)
-    //     //   ])
-    //     //   .reduce((acc: { [x: string]: { t: any; y: any; }[]; }, [date, cars]: any) => {
-    //     //     cars.forEach(([id, sales]: any[]) => {
-    //     //       const input = { t: moment(date), y: sales };
-    //     //       if (acc[id] === undefined) {
-    //     //         acc[id] = [input];
-    //     //       } else {
-    //     //         acc[id].push(input);
-    //     //       }
-              
-    //     //       return acc;
-    //     //     });
-
-    //     //     return acc;
-    //     //   }, {})
-    //     //   ;
-
-    //     // const dataList = Object.keys(dataObj).map(key => ({
-    //     //   label: key,
-    //     //   data: dataObj[key],
-    //     // }));
-
-    //     // this.setState({
-    //     //   series: dataList
-    //     // });
-
-    //     console.log('response.data', response.data);
-    //     console.log('response', dataObj);
-    //   });
-
-  }
-
   componentDidMount() {
-
     Promise.all([axios.get('regions.csv'), axios.get('cases.csv')])
       .then((results) => results.map(r => Papa.parse(r.data).data))
       .then(([regions, data]: [any[][], any[][]]) => {
         
         const mappedRegions = regions.map(r => ({
           label: r[0],
-          population: Number(r[1]),
+          population: Number(r[1]) / 1000000,
         }));
 
         console.log('regions', regions);
@@ -144,7 +85,6 @@ export class Main extends React.Component<MainProps> {
   }
 
   render() {
-
     const offset = 1;
 
     const smoothedSeries = this.state.series
