@@ -9,29 +9,6 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 // import csvParse from 'csv-parse';
 import * as Papa from 'papaparse';
 
-const countryParams = [
-  {
-    label: 'Sweden',
-    population: 10.082431,
-  },
-  {
-    label: 'Germany',
-    population: 83.712576,
-  },
-  {
-    label: 'Cataluña',
-    population: 7.518903,
-  },
-  {
-    label: 'India',
-    population: 1376.362623,
-  },
-  {
-    label: 'Denmark',
-    population: 5.797446,
-  }
-];
-
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 import 'react-grid-layout/css/styles.css';
@@ -56,8 +33,9 @@ export class Main extends React.Component<MainProps> {
   state = {
     selectedItems: ['Sweden', 'Germany'] as string[],
     group: 'models' as string,
-    smooth: '1',
+    smooth: '7',
     series: [] as Series[],
+    regions: [],
   };
 
   constructor(props: MainProps) {
@@ -119,10 +97,18 @@ export class Main extends React.Component<MainProps> {
   }
 
   componentDidMount() {
-    axios
-      .get('cases.csv')
-      .then(r => Papa.parse(r.data).data)
-      .then((data: any[][])  => {
+
+    Promise.all([axios.get('regions.csv'), axios.get('cases.csv')])
+      .then((results) => results.map(r => Papa.parse(r.data).data))
+      .then(([regions, data]: [any[][], any[][]]) => {
+        
+        const mappedRegions = regions.map(r => ({
+          label: r[0],
+          population: Number(r[1]),
+        }));
+
+        console.log('regions', regions);
+        
         const labels = data[0].slice(1);
         const series = data
           .slice(1)
@@ -136,10 +122,10 @@ export class Main extends React.Component<MainProps> {
                 y: Number(r)
               }))
             }))
-          .filter(r => countryParams.map(c => c.label).includes(r.label))
+          .filter(r => mappedRegions.map(c => c.label).includes(r.label))
           .filter((r, i, a) => a.findIndex(b => b.label === r.label) === i)
           .map(r => {
-            const population = countryParams.find(c => c.label === r.label)?.population as number;
+            const population = mappedRegions.find(c => c.label === r.label)?.population as number;
 
             return {
               label: r.label,
@@ -150,7 +136,10 @@ export class Main extends React.Component<MainProps> {
             };
           });
 
-        this.setState({ series });
+        this.setState({
+          series,
+          regions: mappedRegions
+        });
       });
   }
 
@@ -180,7 +169,7 @@ export class Main extends React.Component<MainProps> {
             labelFor="group"
           >
             <SelectChartItems
-              items={countryParams}
+              items={this.state.regions}
               selectedItems={this.state.selectedItems}
               onSelection={selectedItems => this.setState({ selectedItems })}
             />
