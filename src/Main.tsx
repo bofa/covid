@@ -12,12 +12,20 @@ import * as Papa from 'papaparse';
 const countryParams = [
   {
     label: 'Sweden',
-    polulation: 10,
+    population: 10.082431,
   },
   {
     label: 'Germany',
-    population: 80,
-  }
+    population: 83.712576,
+  },
+  // {
+  //   label: 'Cataluña',
+  //   population: 7.518903,
+  // },
+  // {
+  //   label: 'India',
+  //   population: 1376.362623,
+  // }
 ];
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -42,7 +50,7 @@ export class Main extends React.Component<MainProps> {
     
   state = {
     group: 'models' as string,
-    smooth: 1,
+    smooth: 7,
     series: [] as Series[],
   };
 
@@ -76,7 +84,18 @@ export class Main extends React.Component<MainProps> {
                 y: Number(r)
               }))
             }))
-            .filter(r => countryParams.map(c => c.label).includes(r.label));
+          .filter(r => countryParams.map(c => c.label).includes(r.label))
+          .map(r => {
+            const population = countryParams.find(c => c.label === r.label)?.population as number;
+
+            return {
+              label: r.label,
+              data: r.data.map(d => ({
+                t: d.t,
+                y: d.y / population * 10
+              }))
+            };
+          });
 
         this.setState({ series });
 
@@ -144,7 +163,7 @@ export class Main extends React.Component<MainProps> {
     return (
       <div style={{ padding: 15, height: window.innerHeight - 100 }}>
         <ResponsiveGridLayout className="layout" rowHeight={30}>
-          <FormGroup
+          {/* <FormGroup
             data-grid={{x: 0, y: 0, w: 1, h: 2, static: true}}
             key="group"
             label="Group"
@@ -162,7 +181,7 @@ export class Main extends React.Component<MainProps> {
                 <option value="spain">Spain</option>
               </select>
             </div>
-          </FormGroup>
+          </FormGroup> */}
           <FormGroup
             key="smoothing"
             data-grid={{x: 1, y: 0, w: 1, h: 2, static: true}}
@@ -180,12 +199,12 @@ export class Main extends React.Component<MainProps> {
                 <option value={7}>Week</option>
                 <option value={30}>Month</option>
                 {/* <option value={24}>Two Years</option> */}
-                <option value={1000}>Cumulative</option>
+                {/* <option value={1000}>Cumulative</option> */}
               </select>
             </div>
           </FormGroup>
         </ResponsiveGridLayout>
-        <Chart series={smoothedSeries} smooth={this.state.smooth} slice={200} />
+        <Chart series={smoothedSeries} smooth={this.state.smooth} slice={150} />
       </div>
     );
   }
