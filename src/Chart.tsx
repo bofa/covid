@@ -48,6 +48,30 @@ export default function Chart(props: ChartProps) {
       xAxes: [{
         type: 'time'
       }]
+    },
+    annotation: {
+      annotations: [
+        {
+          drawTime: 'afterDraw', // overrides annotation.drawTime if set
+          type: 'line',
+          mode: 'horizontal',
+          scaleID: 'y-axis-0',
+          value: '30',
+          borderColor: 'red',
+          borderWidth: 2,
+          label: { content: 'Norway limit', enabled: true }
+        },
+        {
+          drawTime: 'afterDraw', // overrides annotation.drawTime if set
+          type: 'line',
+          mode: 'horizontal',
+          scaleID: 'y-axis-0',
+          value: '70',
+          borderColor: 'red',
+          borderWidth: 2,
+          label: { content: 'Germany limit', enabled: true }
+        }
+      ]
     }
   };
 
