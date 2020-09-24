@@ -5,6 +5,20 @@ import Chart, { Series } from './Chart';
 import { FormGroup } from '@blueprintjs/core';
 // import GridLayout from 'react-grid-layout';
 import { Responsive, WidthProvider } from 'react-grid-layout';
+// const neatCsv = require('neat-csv');
+// import csvParse from 'csv-parse';
+import * as Papa from 'papaparse';
+
+const countryParams = [
+  {
+    label: 'Sweden',
+    polulation: 10,
+  },
+  {
+    label: 'Germany',
+    population: 80,
+  }
+];
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -28,107 +42,104 @@ export class Main extends React.Component<MainProps> {
     
   state = {
     group: 'models' as string,
-    smooth: 12,
+    smooth: 1,
     series: [] as Series[],
-    norway: [] as Series[],
-    netherlands: [] as Series[],
-    spain: [] as Series[],
   };
 
   constructor(props: MainProps) {
     super(props);
 
-    axios.get('norway.json')
-      .then(reponse => reponse.data)
-      .then(norway => this.setState({ norway }));
+    // 1JRY_Ge9cS0AVgSQ1NcCgb7zXL_bKuKxug-2buM3pgWI
+    
+    // axios
+    // .get('https://docs.google.com/spreadsheets/d/e/
+    // 2PACX-1vR69RO9V00Rkd9dJrD8hxW4B86D1Mdq3yLSm1_67pUhjQcys6lXeu0tGkjTCP4gRi5Ez06ZDkFrPSDF/pub?output=csv')
+    //   .then(reponse => console.log('response', reponse.data));
 
-    axios.get('netherlands.json')
-      .then(reponse => reponse.data)
-      .then(netherlands => this.setState({ netherlands }));
-
-    axios.get('spain.json')
-      .then(reponse => reponse.data)
-      .then(spain => this.setState({ spain }));
+    // axios.get('https://yacdn.org/serve/https://datagraver.com/corona/data/cases.csv?time=1600861091380')
+    //   .then(reponse => console.log('gurkburk', reponse));
 
     axios
-      .get('https://spreadsheets.google.com/feeds/list/1l50qi3FAue2zqMOtc-vdGbXBWpb0I4lKByqUaz2nuFs/1/public/basic?alt=json')
-      .then(response => {
-        const dataObj = response.data.feed.entry
-          .map((row: any) => [row.title['$t'],
-            // convertArrayToObject(
-              row.content['$t']
-              .replace(/ /g, '')
-              // .split(' ').join()
-              .split(',')
-              .map((r: any) => r.split(':'))
-              .map((r: any) => [r[0], Number(r[1])])
-              .filter((r: any) => !isNaN(r[1]))
-            // , 0)
-          ])
-          .reduce((acc: { [x: string]: { t: any; y: any; }[]; }, [date, cars]: any) => {
-            cars.forEach(([id, sales]: any[]) => {
-              const input = { t: moment(date), y: sales };
-              if (acc[id] === undefined) {
-                acc[id] = [input];
-              } else {
-                acc[id].push(input);
-              }
-              
-              return acc;
-            });
+      .get('cases.csv')
+      .then(r => Papa.parse(r.data).data)
+      .then((data: any[][])  => {
+        const labels = data[0].slice(1);
+        const series = data
+          .slice(1)
 
-            return acc;
-          }, {})
-          ;
+          .map((c) => ({
+            label: c[0],
+            data: c
+              .slice(1)
+              .map((r, i) => ({
+                t: moment(labels[i], 'YYYY-MM-DD'),
+                y: Number(r)
+              }))
+            }))
+            .filter(r => countryParams.map(c => c.label).includes(r.label));
 
-        const dataList = Object.keys(dataObj).map(key => ({
-          label: key,
-          data: dataObj[key],
-        }));
+        this.setState({ series });
 
-        this.setState({
-          series: dataList
-        });
-
-        console.log('response.data', response.data);
-        console.log('response', dataObj, dataList);
+        console.log('sweden?', data, series);
       });
+      // .then(arg => console.log('arg', csvParse(arg.data, undefined, (data) => console.log('done', data))));
+    //   .then(response => {
+    //     const dataObj = response.data.feed.entry;
+    //     //   .map((row: any) => [row.title['$t'],
+    //     //     // convertArrayToObject(
+    //     //       row.content['$t']
+    //     //       .replace(/ /g, '')
+    //     //       // .split(' ').join()
+    //     //       .split(',')
+    //     //       .map((r: any) => r.split(':'))
+    //     //       .map((r: any) => [r[0], Number(r[1])])
+    //     //       .filter((r: any) => !isNaN(r[1]))
+    //     //     // , 0)
+    //     //   ])
+    //     //   .reduce((acc: { [x: string]: { t: any; y: any; }[]; }, [date, cars]: any) => {
+    //     //     cars.forEach(([id, sales]: any[]) => {
+    //     //       const input = { t: moment(date), y: sales };
+    //     //       if (acc[id] === undefined) {
+    //     //         acc[id] = [input];
+    //     //       } else {
+    //     //         acc[id].push(input);
+    //     //       }
+              
+    //     //       return acc;
+    //     //     });
+
+    //     //     return acc;
+    //     //   }, {})
+    //     //   ;
+
+    //     // const dataList = Object.keys(dataObj).map(key => ({
+    //     //   label: key,
+    //     //   data: dataObj[key],
+    //     // }));
+
+    //     // this.setState({
+    //     //   series: dataList
+    //     // });
+
+    //     console.log('response.data', response.data);
+    //     console.log('response', dataObj);
+    //   });
+
   }
 
   render() {
 
-    let filteredData: Series[] = [];
-    let remove: (label: string) => boolean = () => true;
-    switch (this.state.group) {
-      case 'models': 
-        remove = (label: string) => !['total', 'totalnonebev', 'totalbev'].includes(label);
-        filteredData = this.state.series
-          .filter(({ label }) => label !== 'total' && remove(label))
-            .map(s => ({
-              ...s,
-              data: s.data
-            }));
-        break;
-      case 'segment': 
-        remove = (label: string) => ['total', 'totalnonebev', 'totalbev'].includes(label); 
-        filteredData = this.state.series
-          .filter(({ label }) => label !== 'total' && remove(label))
-            .map(s => ({
-              ...s,
-              data: s.data
-            })); 
-        break;
-      case 'norway':
-        filteredData = this.state.norway;
-        break;
-      case 'netherlands':
-        filteredData = this.state.netherlands;
-        break;
-      case 'spain':
-        filteredData = this.state.spain;
-        break;
-      default: break;
-    }
+    const offset = 1;
+
+    const smoothedSeries = this.state.series.map(d => ({
+      label: d.label,
+      data: d.data.map((r, i) => ({
+        t: r.t,
+        y: i > offset ? (r.y - d.data[i - offset].y) / offset : NaN
+      }))
+    }));
+
+    // console.log('smoothedSeries', this.state.series, smoothedSeries);
 
     return (
       <div style={{ padding: 15, height: window.innerHeight - 100 }}>
@@ -164,17 +175,17 @@ export class Main extends React.Component<MainProps> {
                 value={this.state.smooth}
                 onChange={e => this.setState({ smooth: e.target.value })}  
               >
-                <option value={1}>Month</option>
-                <option value={3}>Quater</option>
-                <option value={6}>Half Year</option>
-                <option value={12}>Year</option>
-                <option value={24}>Two Years</option>
+                <option value={1}>Day</option>
+                <option value={2}>2 Days</option>
+                <option value={7}>Week</option>
+                <option value={30}>Month</option>
+                {/* <option value={24}>Two Years</option> */}
                 <option value={1000}>Cumulative</option>
               </select>
             </div>
           </FormGroup>
         </ResponsiveGridLayout>
-        <Chart series={filteredData} smooth={this.state.smooth} />
+        <Chart series={smoothedSeries} smooth={this.state.smooth} slice={200} />
       </div>
     );
   }

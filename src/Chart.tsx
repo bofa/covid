@@ -18,8 +18,9 @@ export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
     .map((v1, i1) => ({
       t: v1.t,
       y: list
+        // .slice(i1 - size, i1)
         .filter((_2, i2) => i2 > i1 - size && i2 <= i1 )
-        .map(({ y }) => y)
+        .map(({ y }) => y / (size + 1))
         .reduce((acc, v) => acc + v)
       }));
 
@@ -34,6 +35,7 @@ export interface Series {
 interface ChartProps {
   series: Series[];
   smooth: number;
+  slice: number;
 }
 
 export default function Chart(props: ChartProps) {
@@ -56,7 +58,7 @@ export default function Chart(props: ChartProps) {
         // backgroundColor: rgba(i),
         borderColor: rgba(i),
         label: s.label,
-        data: smooth(s.data, props.smooth)
+        data: smooth(s.data, props.smooth).slice(props.slice)
       }))
   };
 
