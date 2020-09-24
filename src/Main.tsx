@@ -18,20 +18,25 @@ const countryParams = [
     label: 'Germany',
     population: 83.712576,
   },
-  // {
-  //   label: 'Cataluña',
-  //   population: 7.518903,
-  // },
-  // {
-  //   label: 'India',
-  //   population: 1376.362623,
-  // }
+  {
+    label: 'Cataluña',
+    population: 7.518903,
+  },
+  {
+    label: 'India',
+    population: 1376.362623,
+  },
+  {
+    label: 'Denmark',
+    population: 5.797446,
+  }
 ];
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import SelectChartItems from './SelectRegion';
 
 export const convertArrayToObject = (array: any[], key: string | number) => {
   const initialValue = {};
@@ -49,8 +54,9 @@ interface MainProps {
 export class Main extends React.Component<MainProps> {
     
   state = {
+    selectedItems: ['Sweden', 'Germany'] as string[],
     group: 'models' as string,
-    smooth: 7,
+    smooth: '1',
     series: [] as Series[],
   };
 
@@ -67,40 +73,6 @@ export class Main extends React.Component<MainProps> {
     // axios.get('https://yacdn.org/serve/https://datagraver.com/corona/data/cases.csv?time=1600861091380')
     //   .then(reponse => console.log('gurkburk', reponse));
 
-    axios
-      .get('cases.csv')
-      .then(r => Papa.parse(r.data).data)
-      .then((data: any[][])  => {
-        const labels = data[0].slice(1);
-        const series = data
-          .slice(1)
-
-          .map((c) => ({
-            label: c[0],
-            data: c
-              .slice(1)
-              .map((r, i) => ({
-                t: moment(labels[i], 'YYYY-MM-DD'),
-                y: Number(r)
-              }))
-            }))
-          .filter(r => countryParams.map(c => c.label).includes(r.label))
-          .map(r => {
-            const population = countryParams.find(c => c.label === r.label)?.population as number;
-
-            return {
-              label: r.label,
-              data: r.data.map(d => ({
-                t: d.t,
-                y: d.y / population * 10
-              }))
-            };
-          });
-
-        this.setState({ series });
-
-        console.log('sweden?', data, series);
-      });
       // .then(arg => console.log('arg', csvParse(arg.data, undefined, (data) => console.log('done', data))));
     //   .then(response => {
     //     const dataObj = response.data.feed.entry;
@@ -146,45 +118,76 @@ export class Main extends React.Component<MainProps> {
 
   }
 
+  componentDidMount() {
+    axios
+      .get('cases.csv')
+      .then(r => Papa.parse(r.data).data)
+      .then((data: any[][])  => {
+        const labels = data[0].slice(1);
+        const series = data
+          .slice(1)
+
+          .map((c) => ({
+            label: c[0],
+            data: c
+              .slice(1)
+              .map((r, i) => ({
+                t: moment(labels[i], 'YYYY-MM-DD'),
+                y: Number(r)
+              }))
+            }))
+          .filter(r => countryParams.map(c => c.label).includes(r.label))
+          .filter((r, i, a) => a.findIndex(b => b.label === r.label) === i)
+          .map(r => {
+            const population = countryParams.find(c => c.label === r.label)?.population as number;
+
+            return {
+              label: r.label,
+              data: r.data.map(d => ({
+                t: d.t,
+                y: d.y / population
+              }))
+            };
+          });
+
+        this.setState({ series });
+      });
+  }
+
   render() {
 
     const offset = 1;
 
-    const smoothedSeries = this.state.series.map(d => ({
-      label: d.label,
-      data: d.data.map((r, i) => ({
-        t: r.t,
-        y: i > offset ? (r.y - d.data[i - offset].y) / offset : NaN
-      }))
-    }));
+    const smoothedSeries = this.state.series
+      .filter(d => this.state.selectedItems.includes(d.label))
+      .map(d => ({
+        label: d.label,
+        data: d.data.map((r, i) => ({
+          t: r.t,
+          y: i > offset ? (r.y - d.data[i - offset].y) / offset : NaN
+        }))
+      }));
 
-    // console.log('smoothedSeries', this.state.series, smoothedSeries);
+    console.log('state', smoothedSeries, this.state);
 
     return (
       <div style={{ padding: 15, height: window.innerHeight - 100 }}>
         <ResponsiveGridLayout className="layout" rowHeight={30}>
-          {/* <FormGroup
-            data-grid={{x: 0, y: 0, w: 1, h: 2, static: true}}
+          <FormGroup
+            data-grid={{x: 0, y: 0, w: 4, h: 2, static: true}}
             key="group"
             label="Group"
             labelFor="group"
           >
-            <div className="bp3-select">
-              <select
-                value={this.state.group}
-                onChange={e => this.setState({ group: e.target.value })}  
-              >
-                <option value="models">Sweden Models</option>
-                <option value="segment">Sweden Segment</option>
-                <option value="norway">Norway</option>
-                <option value="netherlands">Netherlands</option>
-                <option value="spain">Spain</option>
-              </select>
-            </div>
-          </FormGroup> */}
+            <SelectChartItems
+              items={countryParams}
+              selectedItems={this.state.selectedItems}
+              onSelection={selectedItems => this.setState({ selectedItems })}
+            />
+          </FormGroup>
           <FormGroup
             key="smoothing"
-            data-grid={{x: 1, y: 0, w: 1, h: 2, static: true}}
+            data-grid={{x: 4, y: 0, w: 2, h: 2, static: true}}
             label="Smoothing"
             helperText="Interval too accumulate over"
             labelFor="select"
@@ -204,7 +207,7 @@ export class Main extends React.Component<MainProps> {
             </div>
           </FormGroup>
         </ResponsiveGridLayout>
-        <Chart series={smoothedSeries} smooth={this.state.smooth} slice={150} />
+        <Chart series={smoothedSeries} smooth={+this.state.smooth} slice={150} />
       </div>
     );
   }

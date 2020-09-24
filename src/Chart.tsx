@@ -62,7 +62,7 @@ export default function Chart(props: ChartProps) {
       }))
   };
 
-  console.log('props', formattedSeries);
+  // console.log('formattedSeries', props.series, props.smooth, formattedSeries);
 
   return <Line data={formattedSeries} options={options} />;
 }
