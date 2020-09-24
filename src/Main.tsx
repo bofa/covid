@@ -129,6 +129,7 @@ export class Main extends React.Component<MainProps> {
                 <option value={1}>Day</option>
                 <option value={2}>2 Days</option>
                 <option value={7}>Week</option>
+                <option value={14}>2 Week</option>
                 <option value={30}>Month</option>
                 {/* <option value={24}>Two Years</option> */}
                 {/* <option value={1000}>Cumulative</option> */}

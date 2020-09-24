@@ -56,20 +56,20 @@ export default function Chart(props: ChartProps) {
           type: 'line',
           mode: 'horizontal',
           scaleID: 'y-axis-0',
-          value: '30',
+          value: 20 / 14 * 10,
           borderColor: 'red',
           borderWidth: 2,
-          label: { content: 'Norway limit', enabled: true }
+          label: { position: 'left', content: 'Norway limit', enabled: true }
         },
         {
           drawTime: 'afterDraw', // overrides annotation.drawTime if set
           type: 'line',
           mode: 'horizontal',
           scaleID: 'y-axis-0',
-          value: '70',
+          value: 50 / 14 * 10,
           borderColor: 'red',
           borderWidth: 2,
-          label: { content: 'Germany limit', enabled: true }
+          label: { position: 'left', content: 'Germany limit', enabled: true }
         }
       ]
     }
