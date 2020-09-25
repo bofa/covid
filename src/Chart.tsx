@@ -7,12 +7,32 @@ import 'chartjs-plugin-annotation';
 import { Line } from 'react-chartjs-2';
 import { ChartData } from 'chart.js';
 
-export function rgba(index: number, alpha: number = 0.6) {
+function hashCode(str: string) {
+  return str.split('').reduce((prevHash, currVal) =>
+    // tslint:disable-next-line: no-bitwise
+    (((prevHash << 5) - prevHash) + currVal.charCodeAt(0)) | 0, 0);
+}
+
+export function rgba(label: string, alpha: number = 0.6) {
+  const index = hashCode(label);
   const o = Math.round, r = (seed: number) => Math.sin(seed * index) ** 2, s = 255;
-  return 'rgba(' + o(r(1) * s) + ',' + o(r(2) * s) + ',' + o(r(3) * s) + ',' + alpha + ')';
+  return 'rgba(' + o(r(1000) * s) + ',' + o(r(-2000) * s) + ',' + o(r(30) * s) + ',' + alpha + ')';
 }
 
 export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
+  if (isNaN(size)) {
+    const cumulative = list
+      .map((v1, i1) => ({
+        t: v1.t,
+        y: list
+          .filter((_2, i2) => i2 <= i1 )
+          .map(({ y }) => y)
+          .reduce((acc, v) => acc + v)
+        }));
+
+    return cumulative;
+  }
+
   const output = list
     // .slice(size)
     .map((v1, i1) => ({
@@ -82,7 +102,7 @@ export default function Chart(props: ChartProps) {
       .map((s, i) => ({
         fill: false,
         // backgroundColor: rgba(i),
-        borderColor: rgba(i),
+        borderColor: rgba(s.label),
         label: s.label,
         data: smooth(s.data, props.smooth).slice(props.slice)
       }))

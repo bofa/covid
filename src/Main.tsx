@@ -108,13 +108,14 @@ export class Main extends React.Component<MainProps> {
           t: r.t,
           y: i > offset ? (r.y - d.data[i - offset].y) / offset : NaN
         }))
+        .filter(v => !isNaN(v.y))
       }));
 
     console.log('state', smoothedSeries, this.state);
 
     return (
       <div style={{ padding: 15, height: window.innerHeight - 100 }}>
-        <ResponsiveGridLayout className="layout" rowHeight={30}>
+        <ResponsiveGridLayout className="layout" rowHeight={30} cols={{lg: 8, md: 8, sm: 8, xs: 2, xxs: 2}}>
           <FormGroup
             key="group"
             data-grid={{x: 0, y: 0, w: 1, h: 2, static: true}}
@@ -142,18 +143,17 @@ export class Main extends React.Component<MainProps> {
                 value={this.state.smooth}
                 onChange={e => this.setState({ smooth: e.target.value })}  
               >
-                <option value={1}>Day</option>
-                <option value={2}>2 Days</option>
-                <option value={7}>Week</option>
-                <option value={14}>2 Weeks</option>
-                <option value={30}>Month</option>
-                {/* <option value={24}>Two Years</option> */}
-                {/* <option value={1000}>Cumulative</option> */}
+                <option value="1">Day</option>
+                <option value="2">2 Days</option>
+                <option value="7">Week</option>
+                <option value="14">2 Weeks</option>
+                <option value="30">Month</option>
+                <option value="cumulative">Cumulative</option>
               </select>
             </div>
           </FormGroup>
           <FormGroup
-            data-grid={{x: 2, y: 0, w: 10, h: 2, static: true}}
+            data-grid={{x: 2, y: 0, w: 6, h: 2, static: true}}
             key="regions"
             label="Regions"
             labelFor="regions"
@@ -165,7 +165,7 @@ export class Main extends React.Component<MainProps> {
             />
           </FormGroup>
         </ResponsiveGridLayout>
-        <Chart series={smoothedSeries} smooth={+this.state.smooth} slice={150} annotations={this.state.group === 'series'} />
+        <Chart series={smoothedSeries} smooth={+this.state.smooth} slice={150} annotations={this.state.group === 'series' && +this.state.smooth < 100} />
       </div>
     );
   }
