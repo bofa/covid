@@ -36,6 +36,7 @@ interface ChartProps {
   series: Series[];
   smooth: number;
   slice: number;
+  annotations: boolean;
 }
 
 export default function Chart(props: ChartProps) {
@@ -50,8 +51,8 @@ export default function Chart(props: ChartProps) {
       }]
     },
     annotation: {
-      annotations: [
-        {
+      annotations: props.annotations
+      ? [{
           drawTime: 'afterDraw', // overrides annotation.drawTime if set
           type: 'line',
           mode: 'horizontal',
@@ -72,6 +73,7 @@ export default function Chart(props: ChartProps) {
           label: { position: 'left', content: 'Germany limit', enabled: true }
         }
       ]
+      : []
     }
   };
 
