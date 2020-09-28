@@ -5,7 +5,7 @@ import * as moment from 'moment';
 // import { Line } from 'react-chartjs-2';
 import 'chartjs-plugin-annotation';
 import { Line } from 'react-chartjs-2';
-import { ChartData } from 'chart.js';
+import { ChartData, ChartOptions } from 'chart.js';
 
 function hashCode(str: string) {
   return str.split('').reduce((prevHash, currVal) =>
@@ -55,19 +55,48 @@ export interface Series {
 interface ChartProps {
   series: Series[];
   smooth: number;
-  slice: number;
+  slice: number[];
   annotations: boolean;
 }
 
 export default function Chart(props: ChartProps) {
   // const { analyses, chartItems } = props;
 
-  const options = {
+  const formattedSeries = props.series
+    .map((s, i) => ({
+      fill: false,
+      // backgroundColor: rgba(i),
+      borderColor: rgba(s.label),
+      label: s.label,
+      data: smooth(s.data, props.smooth)
+    }));
+
+  const chartData: ChartData = {
+    datasets: formattedSeries
+  };
+
+  const time = formattedSeries.map(s => s.data
+    .filter(d => d.t.isBetween(props.slice[0], props.slice[1])).map(d => d.y)).reduce((a, b) => a.concat(b), []);
+  const min = Math.min(0, ...time);
+  const max = Math.max(...time);
+
+  const options: ChartOptions & { annotation: any } = {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
       xAxes: [{
-        type: 'time'
+        type: 'time',
+        ticks: {
+          min: props.slice[0],
+          max: props.slice[1],
+        }
+      }],
+      yAxes: [{
+        // type: 'time',
+        ticks: {
+          min: min,
+          max: 1.1 * max,
+        }
       }]
     },
     annotation: {
@@ -97,18 +126,7 @@ export default function Chart(props: ChartProps) {
     }
   };
 
-  const formattedSeries: ChartData = {
-    datasets: props.series
-      .map((s, i) => ({
-        fill: false,
-        // backgroundColor: rgba(i),
-        borderColor: rgba(s.label),
-        label: s.label,
-        data: smooth(s.data, props.smooth).slice(props.slice)
-      }))
-  };
-
   // console.log('formattedSeries', props.series, props.smooth, formattedSeries);
 
-  return <Line data={formattedSeries} options={options} />;
+  return <Line data={chartData} options={options} />;
 }
