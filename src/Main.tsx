@@ -28,61 +28,21 @@ export const convertArrayToObject = (array: any[], key: string | number) => {
 interface MainProps {
 }
 
-function massageCsv(data: any[][], mappedRegions: { label: string, population: number}[]) {
-  const labels = data[0].slice(1);
-  const series = data
-    .slice(1)
-    .map((c) => ({
-      label: c[0],
-      data: c
-        .slice(1)
-        .map((r, i) => ({
-          t: moment(labels[i], 'YYYY-MM-DD'),
-          y: Number(r)
-        }))
-      }))
-    .filter(r => mappedRegions.map(c => c.label).includes(r.label))
-    .filter((r, i, a) => a.findIndex(b => b.label === r.label) === i)
-    .map(r => {
-      const population = mappedRegions.find(c => c.label === r.label)?.population as number;
-
-      return {
-        label: r.label,
-        data: r.data.map(d => ({
-          t: d.t,
-          y: d.y / population
-        }))
-      };
-    });
-
-  return series;
-}
-
-function massageExcessDeaths(response: any, populationIndex: number, deathsIndex: number) {
+function massageExcessDeaths(response: any) {
   const parsed = Papa.parse(response.data).data as any[][];
   const label = parsed[1][0];
 
   const data = parsed.slice(1)
     .map(r => ({
-      t: moment(r[2], 'DD/MM/YYYY'),
-      y: r[deathsIndex] / r[populationIndex] * 1000000
-        / (1 + moment(r[3], 'DD/MM/YYYY').diff(moment(r[2], 'DD/MM/YYYY'), 'days')),
+      t: moment(r[4]),
+      y: r[11] / r[7] * 1000000
+        / (1 + moment(r[4]).diff(moment(r[3]), 'days')),
     }))
     .filter(d => d.t.isValid && !isNaN(d.y));
 
-  const validation = data.filter(r => r.t.year() < 2020);
-
-  const diffNorm = data.filter(r => r.t.year() >= 2020)
-    .map(d1 => ({
-      t: d1.t,
-      y: d1.y - validation.filter(d2 => Math.abs(d1.t.dayOfYear() - d2.t.dayOfYear()) < 8)
-      .map(d => d.y).reduce((sum, y, i, a) => sum + y / a.length, 0)
-    }));
-
   const series: Series = {
     label,
-    // data,
-    data: diffNorm
+    data
   };
 
   return series;
@@ -99,7 +59,6 @@ export class Main extends React.Component<MainProps> {
     series: [] as Series[],
     fatalities: [] as Series[],    
     excess: [] as Series[],
-    regions: [],
     slider: [0, 1] as [number, number],
   };
 
@@ -118,91 +77,38 @@ export class Main extends React.Component<MainProps> {
   }
 
   componentDidMount() {
-    this.regions$ = axios.get('regions.csv')
-      .then(response => Papa.parse(response.data).data)
-      .then((regions: any[][]) => {
-        const mappedRegions = regions
-          .slice(1)
-          .map(r => ({
-            label: r[0],
-            population: Number(r[1]) / 1000000,
-          }))
-          .filter(r => !['Diamond Princess'].includes(r.label))
-          .filter((r, i, a) => a.map(c => c.label).includes(r.label));
-
-        return mappedRegions;
-      });
-
-    this.regions$.then((regions: any) => this.setState({ regions }));
-
     this.loadCases();  
   }
 
   loadCases = () => {
-    Promise.all([this.regions$, axios.get('cases.csv').then(r => Papa.parse(r.data).data)])
-      .then(([mappedRegions, data]: [any, any[][]]) => {
-        
-        const series = massageCsv(data, mappedRegions)
-          .map(d => ({
-            label: d.label,
-            data: d.data.map((r, i) => ({
-              t: r.t,
-              y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
-            }))
-            .filter(v => !isNaN(v.y))
-          }));
-
-        // const fatalities = massageCsv(fatalitiesCsv, mappedRegions)
-        //   .map(d => ({
-        //     label: d.label,
-        //     data: d.data.map((r, i) => ({
-        //       t: r.t,
-        //       y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
-        //     }))
-        //     .filter(v => !isNaN(v.y))
-        //   }));
-
+    axios.get('cases.json')
+      .then((response: any) => {
         this.setState({
-          // regions: mappedRegions,
-          series,
-          // fatalities,
+          series: response.data,
         });
       });
     }
 
     loadCovidFatalities = () => {
-      Promise.all([this.regions$, axios.get('fatalities.csv').then(r => Papa.parse(r.data).data)])
-        .then(([mappedRegions, fatalitiesCsv]: [any, any[][]]) => {
-  
-          const fatalities = massageCsv(fatalitiesCsv, mappedRegions)
-            .map(d => ({
-              label: d.label,
-              data: d.data.map((r, i) => ({
-                t: r.t,
-                y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
-              }))
-              .filter(v => !isNaN(v.y))
-            }));
-  
+      axios.get('fatalities.json')
+        .then((response: any) => {
           this.setState({
-            // regions: mappedRegions,
-            fatalities,
+            fatalities: response.data,
           });
         });
     }
 
-    loadExcessFatalities = (labels = []) => {
-    const baseUrl = 'https://raw.githubusercontent.com/TheEconomist/covid-19-excess-deaths-tracker/master/source-data/';
+  loadExcessFatalities = (labels = []) => {
+    // tslint:disable-next-line: max-line-length
+    // const baseUrl = 'https://raw.githubusercontent.com/TheEconomist/covid-19-excess-deaths-tracker/master/source-data/';
+    const baseUrl = 'https://raw.githubusercontent.com/TheEconomist/covid-19-excess-deaths-tracker/master/output-data/excess-deaths/';
+    const endUrl = '_excess_deaths.csv';
+
     [
-      [baseUrl + 'sweden/sweden_total_source_latest.csv', 4, 5],
-      [baseUrl + 'germany/germany_total_source_latest.csv', 4, 5],
-      [baseUrl + 'netherlands/netherlands_total_source_latest.csv', 4, 5],
-      // [baseUrl + 'france/france_total_source_latest.csv', 4, 5],
-      [baseUrl + 'turkey/turkey_total_source_latest.csv', 4, 5],
-      [baseUrl + 'belgium/belgium_total_source_latest.csv', 4, 5],
-      [baseUrl + 'norway/norway_total_source_latest.csv', 5, 6],
-    ].forEach((params: [string, number, number]) => axios.get(params[0])
-      .then(r => massageExcessDeaths(r, params[1], params[2]))
+      'sweden', 'germany', 'netherlands', 'turkey', 'belgium', 'norway', 'spain'
+      // 'france', 'spain', 'chile'
+    ].forEach(label => axios.get(baseUrl + label + endUrl)
+      .then(r => massageExcessDeaths(r))
       .then(series => {
         this.setState({
           excess: this.state.excess.concat(series)
@@ -216,17 +122,11 @@ export class Main extends React.Component<MainProps> {
     const group = this.state[this.state.group] as Series[];
 
     const smoothedSeries = group
-      .filter(d => this.state.selectedItems.includes(d.label));
-      // .map(d => ({
-      //   label: d.label,
-      //   data: d.data.map((r, i) => ({
-      //     t: r.t,
-      //     y: i > offset ? (r.y - d.data[i - offset].y) / offset : NaN
-      //   }))
-      //   .filter(v => !isNaN(v.y))
-      // }));
-
-    // console.log('state', this.state);
+      .filter(s => this.state.selectedItems.includes(s.label))
+      .map(s => ({
+        label: s.label,
+        data: s.data.map(d => ({ t: moment(d.t), y: d.y }))
+      }));
 
     const time = smoothedSeries.map(s => s.data.map(d => d.t.valueOf())).reduce((a, b) => a.concat(b), []);
     const min = Math.min(...time);
@@ -294,15 +194,19 @@ export class Main extends React.Component<MainProps> {
               min={0}
               max={1}
               stepSize={0.02}
-              labelStepSize={10}
+              labelRenderer={false}
               onChange={slider => this.setState({ slider })}
-              // onRelease={}
               value={this.state.slider}
               vertical={false}
             />
           </FormGroup>
         </ResponsiveGridLayout>
-        <Chart series={smoothedSeries} smooth={+this.state.smooth} slice={slice} annotations={this.state.group === 'series' && !isNaN(+this.state.smooth)} />
+        <Chart
+          series={smoothedSeries}
+          smooth={+this.state.smooth}
+          slice={slice}
+          annotations={this.state.group === 'series' && !isNaN(+this.state.smooth)}
+        />
       </div>
     );
   }

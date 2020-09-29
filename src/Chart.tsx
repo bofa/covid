@@ -65,6 +65,7 @@ export default function Chart(props: ChartProps) {
   const formattedSeries = props.series
     .map((s, i) => ({
       fill: false,
+      pointRadius: 1,
       // backgroundColor: rgba(i),
       borderColor: rgba(s.label),
       label: s.label,
@@ -102,7 +103,7 @@ export default function Chart(props: ChartProps) {
     annotation: {
       annotations: props.annotations
       ? [{
-          drawTime: 'afterDraw', // overrides annotation.drawTime if set
+          drawTime: 'beforeDatasetsDraw', // overrides annotation.drawTime if set
           type: 'line',
           mode: 'horizontal',
           scaleID: 'y-axis-0',
@@ -112,7 +113,7 @@ export default function Chart(props: ChartProps) {
           label: { position: 'left', content: 'Norway limit', enabled: true }
         },
         {
-          drawTime: 'afterDraw', // overrides annotation.drawTime if set
+          drawTime: 'beforeDatasetsDraw', // overrides annotation.drawTime if set
           type: 'line',
           mode: 'horizontal',
           scaleID: 'y-axis-0',

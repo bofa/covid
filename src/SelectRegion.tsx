@@ -37,7 +37,7 @@ export default class SelectChartItems extends React.PureComponent<Props> {
             noResults={<MenuItem disabled={true} text="No results." />}
             tagRenderer={(item) => item.label}
             tagInputProps={{
-            onRemove: (label, i) => this.deselectIndex(i),
+            onRemove: (node, i) => this.deselect(node?.valueOf() as string),
             rightElement: clearButton,
             placeholder: 'Overlays',
             tagProps: { minimal: true }
@@ -82,11 +82,11 @@ export default class SelectChartItems extends React.PureComponent<Props> {
     this.props.onSelection(selectedAnalyses);
   }
 
-  private deselectIndex(index: number) {
-    const { selectedItems } = this.props;
+//   private deselectIndex(index: number) {
+//     const { selectedItems } = this.props;
 
-    this.props.onSelection(selectedItems.filter((l, i) => index !== i));
-  }
+//     this.props.onSelection(selectedItems.filter((l, i) => index !== i));
+//   }
 
   private deselect(label: string) {
     const { selectedItems } = this.props;
