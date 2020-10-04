@@ -4,6 +4,7 @@ import { ItemRenderer, MultiSelect } from '@blueprintjs/select';
 
 export interface ChartItem {
   label: string;
+  total: number;
 }
 
 export const REFERENCE_RANGE = 'referenceRange';
@@ -27,13 +28,15 @@ export default class SelectChartItems extends React.PureComponent<Props> {
       ? <Button icon="cross" minimal={true} onClick={this.handleClear} />
       : <Button icon="double-caret-vertical" minimal={true} />;
 
+    const sortedItems = this.props.items.sort((v1, v2) => v2.total - v1.total);
+
     return (
         <SelectInstance
             onItemSelect={this.handleSelect}
             // initialContent={initialContent}
             itemRenderer={this.renderItem}
             // itemsEqual={areFilmsEqual}
-            items={this.props.items}
+            items={sortedItems}
             noResults={<MenuItem disabled={true} text="No results." />}
             tagRenderer={(item) => item.label}
             tagInputProps={{
@@ -63,6 +66,7 @@ export default class SelectChartItems extends React.PureComponent<Props> {
         // label={film.year.toString()}
         onClick={handleClick}
         text={item.label}
+        label={'' + Math.round(item.total)}
         shouldDismissPopover={false}
     />
     );

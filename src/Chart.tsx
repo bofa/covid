@@ -34,13 +34,17 @@ export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
   }
 
   const output = list
-    // .slice(size)
-    .map((v1, i1) => ({
+    .map(d => ({
+      y: d.y,
+      t: d.t,
+      ms: d.t.valueOf(),
+      msLow: d.t.clone().subtract(size - 1, 'days').valueOf(),
+    }))
+    .map((v1, i1, a1) => ({
       t: v1.t,
-      y: list
-        // .slice(i1 - size, i1)
-        .filter((_2, i2) => i2 > i1 - size && i2 <= i1 )
-        .map(({ y }) => y / (size + 1))
+      y: a1
+        .filter((v2) => v2.ms >= v1.msLow && v2.ms <= v1.ms)
+        .map(({ y }, i, a) => y / (a.length))
         .reduce((acc, v) => acc + v)
       }));
 
@@ -50,6 +54,7 @@ export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
 export interface Series {
   label: string;
   data: { t: moment.Moment, y: number }[];
+  total: number;
 }
 
 interface ChartProps {
@@ -57,6 +62,7 @@ interface ChartProps {
   smooth: number;
   slice: number[];
   annotations: boolean;
+  xAxis: string;
 }
 
 export default function Chart(props: ChartProps) {
@@ -93,6 +99,10 @@ export default function Chart(props: ChartProps) {
         }
       }],
       yAxes: [{
+        scaleLabel: {
+          display: true,
+          labelString: props.xAxis,
+        },
         // type: 'time',
         ticks: {
           min: min,

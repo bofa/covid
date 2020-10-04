@@ -85,8 +85,7 @@ const regions$ = axios.get('https://datagraver.com/corona/data/regions.csv?time=
 
 Promise.all([
     regions$,
-    axios.get('https://datagraver.com/corona/data/cases.csv?time=1600930826640')
-      .then((r: any) => Papa.parse(r.data).data)
+    axios.get('https://datagraver.com/corona/data/cases.csv?time=1600930826640').then((r: any) => Papa.parse(r.data).data)
   ])
   .then(([mappedRegions, data]: [any, any[][]]) => {
 
@@ -98,7 +97,8 @@ Promise.all([
           y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
         }))
         .filter(v => !isNaN(v.y))
-      }));
+      }))
+      .map(s => ({ ...s, total: s.data.reduce((sum: number, d: any) => sum + d.y, 0)}));
 
     return series;
   })
@@ -107,8 +107,7 @@ Promise.all([
 
 Promise.all([
   regions$,
-  axios.get('https://datagraver.com/corona/data/fatalities.csv?time=1601023649000')
-    .then((r: any) => Papa.parse(r.data).data)]
+  axios.get('https://datagraver.com/corona/data/fatalities.csv?time=1601023649000').then((r: any) => Papa.parse(r.data).data)]
 ).then(([mappedRegions, fatalitiesCsv]: [any, any[][]]) => {
 
   const fatalities = massageCsv(fatalitiesCsv, mappedRegions)
@@ -119,7 +118,8 @@ Promise.all([
         y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
       }))
       .filter(v => !isNaN(v.y))
-    }));
+    }))
+    .map(s => ({ ...s, total: s.data.reduce((sum: number, d: any) => sum + d.y, 0)}));
 
   return fatalities;
   })
