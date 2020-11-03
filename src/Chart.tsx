@@ -83,7 +83,7 @@ export default function Chart(props: ChartProps) {
   };
 
   const time = formattedSeries.map(s => s.data
-    .filter(d => d.t.isBetween(props.slice[0], props.slice[1])).map(d => d.y)).reduce((a, b) => a.concat(b), []);
+    .filter(d => d.t.isBetween(props.slice[0], props.slice[1], null, '[]')).map(d => d.y)).reduce((a, b) => a.concat(b), []);
   const min = Math.min(0, ...time);
   const max = Math.max(...time);
 

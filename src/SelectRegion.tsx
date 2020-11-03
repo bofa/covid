@@ -81,6 +81,13 @@ export default class SelectChartItems extends React.PureComponent<Props> {
   }
 
   private select(item: ChartItem) {
+    // window.gtag('send', 'event', 'Select', item.label);
+    gtag('event', item.label, {
+      'event_category': 'Country',
+      'event_label': item.label,
+      'value': 1,
+    });
+
     const selectedAnalyses = [...this.props.selectedItems, item.label];
 
     this.props.onSelection(selectedAnalyses);

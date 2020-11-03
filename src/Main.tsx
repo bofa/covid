@@ -9,7 +9,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 // import csvParse from 'csv-parse';
 import * as Papa from 'papaparse';
 
-const groupBy = function(xs: any[][], key: number |  string) {
+function groupBy(xs: any[][], key: number |  string) {
   const obj = xs
   .filter(row => row.length > 1)
   .reduce(function(rv: any, x: any) {
@@ -22,13 +22,14 @@ const groupBy = function(xs: any[][], key: number |  string) {
   console.log('returnArray', xs, returnArray);
 
   return returnArray;
-};
+}
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import SelectChartItems from './SelectRegion';
+import { getCases, getFatalities } from './scrape';
 
 export const convertArrayToObject = (array: any[], key: string | number) => {
   const initialValue = {};
@@ -102,6 +103,7 @@ const xAxisObj = {
   fatalities: 'Fatalities per day per 1 million',    
   excess: 'Fatalities per day per 1 million',
   normal: 'Fatalities per day per 1 million',
+  positive: '% of testing positive'
 };
 
 export class Main extends React.Component<MainProps> {
@@ -116,11 +118,22 @@ export class Main extends React.Component<MainProps> {
     fatalities: [] as Series[],    
     excess: [] as Series[],
     normal: [] as Series[],
+    positive: [] as Series[],
     slider: [0, 1] as [number, number],
   };
 
+  constructor(props: any) {
+    super(props);
+
+    // const localSeries = localStorage.getItem('series');
+    
+    // if (localSeries) {
+    //   this.setState({ series: localSeries });
+    // }
+  }
+
   selectGroup = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const group = event.target.value as 'series' | 'fatalities' | 'excess' | 'normal';
+    const group = event.target.value as 'series' | 'fatalities' | 'excess' | 'normal' | 'positive';
 
     if (group === 'series' && this.state.series.length < 1) {
       this.loadCases();
@@ -130,6 +143,8 @@ export class Main extends React.Component<MainProps> {
       this.loadExcessFatalities();
     } else if (group === 'normal' && this.state.normal.length < 1) {
       this.loadNormalFatalities();
+    } else if (group === 'positive' && this.state.positive.length < 1) {
+      this.loadPositive();
     }
 
     this.setState({ group });
@@ -140,22 +155,43 @@ export class Main extends React.Component<MainProps> {
   }
 
   loadCases = () => {
-    axios.get('cases.json')
+    const time = moment();
+    // axios.get('cases.json')
+    getCases()
       .then((response: any) => {
+        // localStorage.setItem('series', JSON.stringify(response.data));
+        console.log('time', moment().valueOf() - time.valueOf());
+
         this.setState({
-          series: response.data,
+          series: response,
         });
       });
-    }
+  }
 
-    loadCovidFatalities = () => {
-      axios.get('fatalities.json')
-        .then((response: any) => {
-          this.setState({
-            fatalities: response.data,
-          });
+  loadCovidFatalities = () => {
+    // axios.get('fatalities.json')
+    getFatalities()
+      .then((response: any) => {
+        this.setState({
+          fatalities: response,
         });
-    }
+      });
+  }
+
+  loadPositive = () => {
+    axios.get('positive.json')
+    // getPositive()
+      .then((response: any) => response.data)
+      .then((series: any) => {
+        this.setState({
+          positive: series
+            .map((s: any) => ({
+              ...s,
+              data: s.data.map((d: any) => ({ t: moment(d.t), y: d.y }))
+            }))
+        });
+      });
+  }
 
   loadExcessFatalities = (labels = []) => {
     // tslint:disable-next-line: max-line-length
@@ -223,16 +259,19 @@ export class Main extends React.Component<MainProps> {
 
     const smoothedSeries = group
       .filter(s => this.state.selectedItems.includes(s.label))
-      .map(s => ({
-        ...s,
-        data: s.data.map(d => ({ t: moment(d.t), y: d.y }))
-      }));
+      // .map(s => ({
+      //   ...s,
+      //   data: s.data.map(d => ({ t: d.t, y: d.y }))
+      // }))
+      ;
 
     const time = smoothedSeries.map(s => s.data.map(d => d.t.valueOf())).reduce((a, b) => a.concat(b), []);
     const min = Math.min(...time);
     const max = Math.max(...time);
 
     const slice = this.state.slider.map(value => min + value * (max - min));
+
+    // console.log('smoothedSeries', smoothedSeries);
 
     return (
       <div style={{ padding: 15, height: window.innerHeight - 150 }}>
@@ -250,8 +289,9 @@ export class Main extends React.Component<MainProps> {
               >
                 <option value="series">Cases</option>
                 <option value="fatalities">COVID Fatalities</option>
+                <option value="positive">Testing Positive Rate</option>
                 <option value="excess">Excess Fatalities</option>
-                <option value="normal">Normal Fatalities</option>
+                <option value="normal">Total Fatalities</option>
               </select>
             </div>
           </FormGroup>

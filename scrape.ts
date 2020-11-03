@@ -3,6 +3,19 @@ const moment = require('moment');
 const fs = require('fs').promises;
 const Papa =  require('papaparse');
 
+function groupBy(xs: any[], key: number |  string) {
+    const obj = xs
+    // .filter(row => row.length > 1)
+    .reduce(function(rv: any, x: any) {
+        (rv[x[key]] = rv[x[key]] || []).push(x);
+        return rv;
+    }, {});
+
+    const returnArray = Object.values(obj);
+
+    return returnArray;
+}
+
 interface Series {
   label: string;
   data: { t: any, y: number }[];
@@ -67,6 +80,21 @@ function massageCsv(data: any[][], mappedRegions: { label: string, population: n
 
 //   return series;
 // }
+
+// https://opendata.ecdc.europa.eu/covid19/testing/json/
+axios.get('https://opendata.ecdc.europa.eu/covid19/testing/json/')
+  .then((response: any) => response.data)
+  .then((data: any) => groupBy(data, 'country')
+    .map((s: any[]) => ({
+      total: s[s.length - 1].positivity_rate,
+      label: s[0].country,
+      data: s
+        .map((d: any) => ({ t: moment(d.year_week), y: d.positivity_rate }))
+        .filter(d => !isNaN(d.y))}))
+  )
+  // .then((r: any) => console.log('r', r))
+  .then((data: any[]) => fs.writeFile('public/positive.json', JSON.stringify(data)))
+  .then(() => console.log('Done Positive'));
 
 const regions$ = axios.get('https://datagraver.com/corona/data/regions.csv?time=1601023648708')
   .then((response: any) => Papa.parse(response.data).data)

@@ -10,6 +10,7 @@
     "@blueprintjs/datetime": "^3.19.1",
     "@blueprintjs/icons": "^3.21.0",
     "@blueprintjs/select": "^3.14.1",
+    "@types/gtag.js": "0.0.3",
     "axios": "^0.20.0",
     "chart.js": "^2.9.3",
     "chartjs-plugin-annotation": "^0.5.7",
@@ -23,7 +24,7 @@
     "react-chartjs-2": "^2.10.0",
     "react-dom": "^16.13.1",
     "react-grid-layout": "^1.1.1",
-    "react-router-dom": "^5.2.0"
+    "react-router-dom": "^5.2.0",
   },
   "devDependencies": {
     "@types/chart.js": "^2.9.24",
@@ -46,6 +47,7 @@
     "deploy": "gh-pages -d build",
     "test": "react-scripts-ts test --env=jsdom",
     "eject": "react-scripts-ts eject",
-    "scrape": "ts-node scrape.ts"
+    "scrape": "ts-node scrape.ts",
+    "scrape:positive": "ts-node scrape-test-positive-rate.ts"
   }
 }
