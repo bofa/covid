@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { Button, MenuItem } from '@blueprintjs/core';
 import { ItemRenderer, MultiSelect } from '@blueprintjs/select';
+import { smooth } from './Chart';
 
 export interface ChartItem {
   label: string;
-  total: number;
+  data: any[];
 }
 
 export const REFERENCE_RANGE = 'referenceRange';
@@ -16,10 +17,20 @@ const SelectInstance = MultiSelect.ofType<ChartItem>();
 interface Props {
   items: ChartItem[];
   selectedItems: string[];
+  smooth: string;
   onSelection: (selectedItems: string[]) => void;
 }
 
-export default class SelectChartItems extends React.PureComponent<Props> {
+export default class SelectChartItems extends React.Component<Props> {
+
+  shouldComponentUpdate(nextProps: Props) {
+    const update = this.props.items.length !== nextProps.items.length
+      || this.props.smooth !== nextProps.smooth
+      || this.props.selectedItems !== nextProps.selectedItems
+      ;
+
+    return update;
+  }
 
   public render() {
     const { selectedItems } = this.props;
@@ -28,32 +39,42 @@ export default class SelectChartItems extends React.PureComponent<Props> {
       ? <Button icon="cross" minimal={true} onClick={this.handleClear} />
       : <Button icon="double-caret-vertical" minimal={true} />;
 
-    const sortedItems = this.props.items.sort((v1, v2) => v2.total - v1.total);
+    const sortedItems = this.props.items
+      .map(s => {
+        const data = smooth(s.data, +this.props.smooth);
+        
+        return {
+          label: s.label,
+          data,
+          total: data[data.length - 1].y,
+        };
+      })
+      .sort((v1, v2) => v2.total - v1.total);
 
     return (
-        <SelectInstance
-            onItemSelect={this.handleSelect}
-            // initialContent={initialContent}
-            itemRenderer={this.renderItem}
-            // itemsEqual={areFilmsEqual}
-            items={sortedItems}
-            noResults={<MenuItem disabled={true} text="No results." />}
-            tagRenderer={(item) => item.label}
-            tagInputProps={{
-            onRemove: (node, i) => this.deselect(node?.valueOf() as string),
-            rightElement: clearButton,
-            placeholder: 'Overlays',
-            tagProps: { minimal: true }
-            }}
-            selectedItems={this.props.items.filter(ci => selectedItems.includes(ci.label))}
-            resetOnQuery={false}
-            itemPredicate={(query, item) => this.isSelected(item) ||
-            item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase())}
-        />
+      <SelectInstance
+        onItemSelect={this.handleSelect}
+        // initialContent={initialContent}
+        itemRenderer={this.renderItem}
+        // itemsEqual={areFilmsEqual}
+        items={sortedItems}
+        noResults={<MenuItem disabled={true} text="No results." />}
+        tagRenderer={(item) => item.label}
+        tagInputProps={{
+        onRemove: (node, i) => this.deselect(node?.valueOf() as string),
+        rightElement: clearButton,
+        placeholder: 'Overlays',
+        tagProps: { minimal: true }
+        }}
+        selectedItems={this.props.items.filter(ci => selectedItems.includes(ci.label))}
+        resetOnQuery={false}
+        itemPredicate={(query, item) => this.isSelected(item) ||
+        item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase())}
+      />
     );
   }
 
-  private renderItem: ItemRenderer<ChartItem> = (item, { modifiers, handleClick }) => {
+  private renderItem: ItemRenderer<any> = (item, { modifiers, handleClick }) => {
     if (!modifiers.matchesPredicate) {
       return null;
     }

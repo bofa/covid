@@ -54,7 +54,6 @@ export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
 export interface Series {
   label: string;
   data: { t: moment.Moment, y: number }[];
-  total: number;
 }
 
 interface ChartProps {
@@ -75,7 +74,7 @@ export default function Chart(props: ChartProps) {
       // backgroundColor: rgba(i),
       borderColor: rgba(s.label),
       label: s.label,
-      data: smooth(s.data, props.smooth)
+      data: s.data, // smooth(s.data, props.smooth)
     }));
 
   const chartData: ChartData = {

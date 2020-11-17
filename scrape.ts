@@ -4,16 +4,16 @@ const fs = require('fs').promises;
 const Papa =  require('papaparse');
 
 function groupBy(xs: any[], key: number |  string) {
-    const obj = xs
-    // .filter(row => row.length > 1)
-    .reduce(function(rv: any, x: any) {
-        (rv[x[key]] = rv[x[key]] || []).push(x);
-        return rv;
-    }, {});
+  const obj = xs
+  // .filter(row => row.length > 1)
+  .reduce(function(rv: any, x: any) {
+      (rv[x[key]] = rv[x[key]] || []).push(x);
+      return rv;
+  }, {});
 
-    const returnArray = Object.values(obj);
+  const returnArray = Object.values(obj);
 
-    return returnArray;
+  return returnArray;
 }
 
 interface Series {
@@ -81,6 +81,17 @@ function massageCsv(data: any[][], mappedRegions: { label: string, population: n
 //   return series;
 // }
 
+const filterSettings = [
+  {
+    label: 'Sweden',
+    scale: 10,
+    indicator: 'Weekly new ICU admissions per 100k',
+  },
+  {
+    
+  }
+];
+
 // https://opendata.ecdc.europa.eu/covid19/testing/json/
 axios.get('https://opendata.ecdc.europa.eu/covid19/testing/json/')
   .then((response: any) => response.data)
@@ -96,60 +107,88 @@ axios.get('https://opendata.ecdc.europa.eu/covid19/testing/json/')
   .then((data: any[]) => fs.writeFile('public/positive.json', JSON.stringify(data)))
   .then(() => console.log('Done Positive'));
 
-const regions$ = axios.get('https://datagraver.com/corona/data/regions.csv?time=1601023648708')
-  .then((response: any) => Papa.parse(response.data).data)
-  .then((regions: any[][]) => {
-    const mappedRegions = regions
-      .slice(1)
-      .map(r => ({
-        label: r[0],
-        population: Number(r[1]) / 1000000,
-      }))
-      .filter(r => !['Diamond Princess'].includes(r.label))
-      .filter((r, i, a) => a.map(c => c.label).includes(r.label));
-
-    return mappedRegions;
-  });
-
-Promise.all([
-    regions$,
-    axios.get('https://datagraver.com/corona/data/cases.csv?time=1600930826640').then((r: any) => Papa.parse(r.data).data)
-  ])
-  .then(([mappedRegions, data]: [any, any[][]]) => {
-
-    const series = massageCsv(data, mappedRegions)
-      .map(d => ({
-        label: d.label,
-        data: d.data.map((r, i) => ({
-          t: r.t,
-          y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
-        }))
-        .filter(v => !isNaN(v.y))
-      }))
-      .map(s => ({ ...s, total: s.data.reduce((sum: number, d: any) => sum + d.y, 0)}));
-
-    return series;
-  })
-  .then(data => fs.writeFile('public/cases.json', JSON.stringify(data)))
-  .then(() => console.log('Cases Done'));
-
-Promise.all([
-  regions$,
-  axios.get('https://datagraver.com/corona/data/fatalities.csv?time=1601023649000').then((r: any) => Papa.parse(r.data).data)]
-).then(([mappedRegions, fatalitiesCsv]: [any, any[][]]) => {
-
-  const fatalities = massageCsv(fatalitiesCsv, mappedRegions)
-    .map(d => ({
-      label: d.label,
-      data: d.data.map((r, i) => ({
-        t: r.t,
-        y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
-      }))
-      .filter(v => !isNaN(v.y))
+// Indicators [ 'Daily hospital occupancy',
+// 'Daily ICU occupancy',
+// 'Weekly new hospital admissions per 100k',
+// 'Weekly new ICU admissions per 100k' ]
+axios.get('https://opendata.ecdc.europa.eu/covid19/hospitalicuadmissionrates/json/')
+  .then((response: any) => response.data)
+  .then((data: any) => groupBy(data, 'country')
+    .map((s: any[]) => ({
+      label: s[0].country,
+      data: s
+        .filter(d => d.indicator === 'Weekly new ICU admissions per 100k')
+        // .filter((d, i, a) => d.url === a[0].url && d.indicator === a[0].indicator)
+        // .filter(d => d.date)
+        .map((d: any) => ({ t: moment(d.date || d.year_week), y: 10 / 7 * d.value }))
+        .filter(d => !isNaN(d.y))
+        // .sort((a, b) => a.t.isAfter(b.t))
+      })
+    )
+    .filter(s => s.data.length > 0)
+    .map(s => ({
+      ...s,
+      total: s.data[s.data.length - 1].y,
     }))
-    .map(s => ({ ...s, total: s.data.reduce((sum: number, d: any) => sum + d.y, 0)}));
+  )
+  // .then((r: any) => console.log('r', r))
+  .then((data: any[]) => fs.writeFile('public/hospital.json', JSON.stringify(data)))
+  .then(() => console.log('Done Hospital'));
 
-  return fatalities;
-  })
-  .then(data => fs.writeFile('public/fatalities.json', JSON.stringify(data)))
-  .then(() => console.log('Fatalities Done'));
+// const regions$ = axios.get('https://datagraver.com/corona/data/regions.csv?time=1601023648708')
+//   .then((response: any) => Papa.parse(response.data).data)
+//   .then((regions: any[][]) => {
+//     const mappedRegions = regions
+//       .slice(1)
+//       .map(r => ({
+//         label: r[0],
+//         population: Number(r[1]) / 1000000,
+//       }))
+//       .filter(r => !['Diamond Princess'].includes(r.label))
+//       .filter((r, i, a) => a.map(c => c.label).includes(r.label));
+
+//     return mappedRegions;
+//   });
+
+// Promise.all([
+//     regions$,
+//     axios.get('https://datagraver.com/corona/data/cases.csv?time=1600930826640').then((r: any) => Papa.parse(r.data).data)
+//   ])
+//   .then(([mappedRegions, data]: [any, any[][]]) => {
+
+//     const series = massageCsv(data, mappedRegions)
+//       .map(d => ({
+//         label: d.label,
+//         data: d.data.map((r, i) => ({
+//           t: r.t,
+//           y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
+//         }))
+//         .filter(v => !isNaN(v.y))
+//       }))
+//       .map(s => ({ ...s, total: s.data.reduce((sum: number, d: any) => sum + d.y, 0)}));
+
+//     return series;
+//   })
+//   .then(data => fs.writeFile('public/cases.json', JSON.stringify(data)))
+//   .then(() => console.log('Cases Done'));
+
+// Promise.all([
+//   regions$,
+//   axios.get('https://datagraver.com/corona/data/fatalities.csv?time=1601023649000').then((r: any) => Papa.parse(r.data).data)]
+// ).then(([mappedRegions, fatalitiesCsv]: [any, any[][]]) => {
+
+//   const fatalities = massageCsv(fatalitiesCsv, mappedRegions)
+//     .map(d => ({
+//       label: d.label,
+//       data: d.data.map((r, i) => ({
+//         t: r.t,
+//         y: i > 1 ? (r.y - d.data[i - 1].y) : NaN
+//       }))
+//       .filter(v => !isNaN(v.y))
+//     }))
+//     .map(s => ({ ...s, total: s.data.reduce((sum: number, d: any) => sum + d.y, 0)}));
+
+//   return fatalities;
+//   })
+//   .then(data => fs.writeFile('public/fatalities.json', JSON.stringify(data)))
+//   .then(() => console.log('Fatalities Done'));

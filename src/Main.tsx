@@ -1,13 +1,16 @@
+// tslint:disable: jsx-alignment
+
 import * as React from 'react';
 import * as moment from 'moment';
 import axios from 'axios';
-import Chart, { Series } from './Chart';
-import { FormGroup, RangeSlider } from '@blueprintjs/core';
+import Chart, { Series, smooth } from './Chart';
+import { FormGroup, RangeSlider, Spinner } from '@blueprintjs/core';
 // import GridLayout from 'react-grid-layout';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 // const neatCsv = require('neat-csv');
 // import csvParse from 'csv-parse';
 import * as Papa from 'papaparse';
+import { Map } from './Map';
 
 function groupBy(xs: any[][], key: number |  string) {
   const obj = xs
@@ -59,7 +62,6 @@ function massageExcessDeaths(response: any, parseIndex: number = 11) {
   const series: Series = {
     label,
     data,
-    total: data.reduce((sum, d) => sum + d.y, 0),
   };
 
   return series;
@@ -98,12 +100,13 @@ function massageNormalDeaths(response: any, populationIndex: number, deathsIndex
   return series;
 }
 
-const xAxisObj = {
+export const xAxisObj = {
   series: 'Cases per day per 1 million',
   fatalities: 'Fatalities per day per 1 million',    
   excess: 'Fatalities per day per 1 million',
   normal: 'Fatalities per day per 1 million',
-  positive: '% of testing positive'
+  positive: '% of testing positive',
+  hospital: 'Daily new ICU admissions per 1 million'
 };
 
 export class Main extends React.Component<MainProps> {
@@ -111,14 +114,16 @@ export class Main extends React.Component<MainProps> {
   regions$: any;
 
   state = {
+    vizType: 'chart',
     selectedItems: ['Sweden', 'Germany'] as string[],
-    group: 'series' as 'series' | 'fatalities' | 'excess' | 'normal',
+    group: ['series'] as string[],
     smooth: '7',
     series: [] as Series[],
     fatalities: [] as Series[],    
     excess: [] as Series[],
     normal: [] as Series[],
     positive: [] as Series[],
+    hospital: [] as Series[],
     slider: [0, 1] as [number, number],
   };
 
@@ -132,19 +137,37 @@ export class Main extends React.Component<MainProps> {
     // }
   }
 
-  selectGroup = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const group = event.target.value as 'series' | 'fatalities' | 'excess' | 'normal' | 'positive';
+  selectViz = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    gtag('event', 'Map', {
+      'event_category': 'vizType',
+    });
 
-    if (group === 'series' && this.state.series.length < 1) {
+    const vizType = event.target.value;
+
+    this.setState({ vizType });
+  }
+
+  selectGroup = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const group = event.target.value.split(',');
+    // console.log('group', group);
+
+    if (group.includes('series') && this.state.series.length < 1) {
       this.loadCases();
-    } else if (group === 'fatalities' && this.state.fatalities.length < 1) {
+    }
+    if (group.includes('fatalities') && this.state.fatalities.length < 1) {
       this.loadCovidFatalities();
-    } else if (group === 'excess' && this.state.excess.length < 1) {
+    }
+    if (group.includes('excess') && this.state.excess.length < 1) {
       this.loadExcessFatalities();
-    } else if (group === 'normal' && this.state.normal.length < 1) {
+    }
+    if (group.includes('normal') && this.state.normal.length < 1) {
       this.loadNormalFatalities();
-    } else if (group === 'positive' && this.state.positive.length < 1) {
+    }
+    if (group.includes('positive') && this.state.positive.length < 1) {
       this.loadPositive();
+    }
+    if (group.includes('hospital') && this.state.hospital.length < 1) {
+      this.loadHospital();
     }
 
     this.setState({ group });
@@ -155,6 +178,10 @@ export class Main extends React.Component<MainProps> {
   }
 
   loadCases = () => {
+    gtag('event', 'loadCases', {
+      'event_category': 'loadType',
+    });
+
     const time = moment();
     // axios.get('cases.json')
     getCases()
@@ -169,6 +196,10 @@ export class Main extends React.Component<MainProps> {
   }
 
   loadCovidFatalities = () => {
+    gtag('event', 'loadCovidFatalities', {
+      'event_category': 'loadType',
+    });
+
     // axios.get('fatalities.json')
     getFatalities()
       .then((response: any) => {
@@ -179,6 +210,10 @@ export class Main extends React.Component<MainProps> {
   }
 
   loadPositive = () => {
+    gtag('event', 'loadPositive', {
+      'event_category': 'loadType',
+    });
+
     axios.get('positive.json')
     // getPositive()
       .then((response: any) => response.data)
@@ -193,7 +228,30 @@ export class Main extends React.Component<MainProps> {
       });
   }
 
+  loadHospital = () => {
+    gtag('event', 'loadHospital', {
+      'event_category': 'loadType',
+    });
+
+    axios.get('hospital.json')
+    // getPositive()
+      .then((response: any) => response.data)
+      .then((series: any) => {
+        this.setState({
+          hospital: series
+            .map((s: any) => ({
+              ...s,
+              data: s.data.map((d: any) => ({ t: moment(d.t), y: d.y }))
+            }))
+        });
+      });
+  }
+
   loadExcessFatalities = (labels = []) => {
+    gtag('event', 'loadExcessFatalities', {
+      'event_category': 'loadType',
+    });
+
     // tslint:disable-next-line: max-line-length
     // const baseUrl = 'https://raw.githubusercontent.com/TheEconomist/covid-19-excess-deaths-tracker/master/source-data/';
     const baseUrl = 'https://raw.githubusercontent.com/TheEconomist/covid-19-excess-deaths-tracker/master/output-data/excess-deaths/';
@@ -253,17 +311,23 @@ export class Main extends React.Component<MainProps> {
   }
 
   render() {
+    // console.log('state', this.state);
 
-    const group = this.state[this.state.group] as Series[];
-    const xAxis = xAxisObj[this.state.group];
+    const group = (this.state[this.state.group[0]] as Series[])
+    //   .map(s => ({
+    //     ...s,
+    //     data: smooth(s.data, +this.state.smooth),
+    //   }))
+      ;
 
     const smoothedSeries = group
       .filter(s => this.state.selectedItems.includes(s.label))
-      // .map(s => ({
-      //   ...s,
-      //   data: s.data.map(d => ({ t: d.t, y: d.y }))
-      // }))
-      ;
+      .map(s => ({
+        ...s,
+        data: smooth(s.data, +this.state.smooth),
+      }));
+
+    const xAxis = xAxisObj[this.state.group[0]];
 
     const time = smoothedSeries.map(s => s.data.map(d => d.t.valueOf())).reduce((a, b) => a.concat(b), []);
     const min = Math.min(...time);
@@ -271,11 +335,9 @@ export class Main extends React.Component<MainProps> {
 
     const slice = this.state.slider.map(value => min + value * (max - min));
 
-    // console.log('smoothedSeries', smoothedSeries);
-
     return (
-      <div style={{ padding: 15, height: window.innerHeight - 150 }}>
-        <ResponsiveGridLayout className="layout" rowHeight={30} cols={{lg: 8, md: 8, sm: 8, xs: 2, xxs: 2}}>
+      <div style={{ padding: 10, height: window.innerHeight - 200 }}>
+        <ResponsiveGridLayout className="layout" rowHeight={30} cols={{lg: 3, md: 3, sm: 3, xs: 3, xxs: 3}}>
           <FormGroup
             key="group"
             data-grid={{x: 0, y: 0, w: 1, h: 2, static: true}}
@@ -289,7 +351,9 @@ export class Main extends React.Component<MainProps> {
               >
                 <option value="series">Cases</option>
                 <option value="fatalities">COVID Fatalities</option>
+                {/* <option value="series,fatalities">Cases & Fatalities</option> */}
                 <option value="positive">Testing Positive Rate</option>
+                <option value="hospital">ICU Admissions</option>
                 <option value="excess">Excess Fatalities</option>
                 <option value="normal">Total Fatalities</option>
               </select>
@@ -316,21 +380,38 @@ export class Main extends React.Component<MainProps> {
             </div>
           </FormGroup>
           <FormGroup
-            data-grid={{x: 2, y: 0, w: 6, h: 2, static: true}}
+            key="visualtype"
+            data-grid={{x: 2, y: 0, w: 1, h: 2, static: true}}
+            label="Viz Type"
+            labelFor="select"
+          >
+            <div className="bp3-select">
+              <select
+                value={this.state.vizType}
+                onChange={this.selectViz}  
+              >
+                <option value="chart">Chart</option>
+                <option value="map">Map</option>
+              </select>
+            </div>
+          </FormGroup>
+        </ResponsiveGridLayout>
+        {this.state.vizType === 'map'
+          ? null
+          : [<FormGroup
+            data-grid={{x: 3, y: 0, w: 5, h: 2, static: true}}
             key="regions"
             label="Regions"
             labelFor="regions"
           >
             <SelectChartItems
+              smooth={this.state.smooth}
               items={group}
               selectedItems={this.state.selectedItems}
               onSelection={selectedItems => this.setState({ selectedItems })}
             />
-          </FormGroup>
-          <FormGroup
-            data-grid={{x: 1, y: 2, w: 10, h: 1, static: true}}
-            key="slider"
-          >
+          </FormGroup>,
+          <FormGroup key="slider">
             <RangeSlider
               min={0}
               max={1}
@@ -341,14 +422,23 @@ export class Main extends React.Component<MainProps> {
               vertical={false}
             />
           </FormGroup>
-        </ResponsiveGridLayout>
-        <Chart
-          series={smoothedSeries}
-          smooth={+this.state.smooth}
-          slice={slice}
-          xAxis={xAxis}
-          annotations={this.state.group === 'series' && !isNaN(+this.state.smooth)}
-        />
+        ]}
+        {group.length > 0
+          ? this.state.vizType === 'map' ? <Map
+            width={window.innerWidth}
+            height={window.innerHeight - 200}
+            series={group}
+            smooth={+this.state.smooth}
+          />
+          : <Chart
+              series={smoothedSeries}
+              smooth={+this.state.smooth}
+              slice={slice}
+              xAxis={xAxis}
+              annotations={this.state.group.includes('series') && !isNaN(+this.state.smooth)}
+          />
+          : <Spinner/>
+        }
       </div>
     );
   }
