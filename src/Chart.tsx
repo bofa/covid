@@ -6,6 +6,7 @@ import * as moment from 'moment';
 import 'chartjs-plugin-annotation';
 import { Line } from 'react-chartjs-2';
 import { ChartData, ChartOptions } from 'chart.js';
+import { useState } from 'react';
 
 function hashCode(str: string) {
   return str.split('').reduce((prevHash, currVal) =>
@@ -65,9 +66,18 @@ interface ChartProps {
 }
 
 export default function Chart(props: ChartProps) {
-  // const { analyses, chartItems } = props;
+  const [prevLength, setPrevLength] = useState(-1);
 
-  const formattedSeries = props.series
+  let series = props.series;
+  let reDraw = false;
+  if (prevLength !== props.series.length) {
+    series = props.series.slice(0, prevLength + 1);
+
+    reDraw = true;
+    setTimeout(() => setPrevLength(series.length), 10);
+  }
+
+  const formattedSeries = series
     .map((s, i) => ({
       fill: false,
       pointRadius: 1,
@@ -87,6 +97,7 @@ export default function Chart(props: ChartProps) {
   const max = Math.max(...time);
 
   const options: ChartOptions & { annotation: any } = {
+    // animation: { duration: reDraw ? 0 : 1 },
     responsive: true,
     maintainAspectRatio: false,
     scales: {
@@ -138,5 +149,5 @@ export default function Chart(props: ChartProps) {
 
   // console.log('formattedSeries', props.series, props.smooth, formattedSeries);
 
-  return <Line data={chartData} options={options} />;
+  return <Line redraw={reDraw} data={chartData} options={options} />;
 }

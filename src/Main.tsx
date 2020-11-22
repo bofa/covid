@@ -10,6 +10,7 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 // const neatCsv = require('neat-csv');
 // import csvParse from 'csv-parse';
 import * as Papa from 'papaparse';
+import queryString from 'query-string';
 import { Map } from './Map';
 
 function groupBy(xs: any[][], key: number |  string) {
@@ -22,8 +23,6 @@ function groupBy(xs: any[][], key: number |  string) {
 
   const returnArray = Object.values(obj);
 
-  console.log('returnArray', xs, returnArray);
-
   return returnArray;
 }
 
@@ -33,6 +32,8 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import SelectChartItems from './SelectRegion';
 import { getCases, getFatalities } from './scrape';
+import { Route, Switch, withRouter } from 'react-router-dom';
+import CrossGraph from './CrossGraph';
 
 export const convertArrayToObject = (array: any[], key: string | number) => {
   const initialValue = {};
@@ -45,6 +46,8 @@ export const convertArrayToObject = (array: any[], key: string | number) => {
 };
 
 interface MainProps {
+  history: any;
+  location: any;
 }
 
 function massageExcessDeaths(response: any, parseIndex: number = 11) {
@@ -101,7 +104,7 @@ function massageNormalDeaths(response: any, populationIndex: number, deathsIndex
 }
 
 export const xAxisObj = {
-  series: 'Cases per day per 1 million',
+  cases: 'Cases per day per 1 million',
   fatalities: 'Fatalities per day per 1 million',    
   excess: 'Fatalities per day per 1 million',
   normal: 'Fatalities per day per 1 million',
@@ -109,22 +112,21 @@ export const xAxisObj = {
   hospital: 'Daily new ICU admissions per 1 million'
 };
 
-export class Main extends React.Component<MainProps> {
-
-  regions$: any;
+class Main extends React.Component<MainProps> {
 
   state = {
     vizType: 'chart',
-    selectedItems: ['Sweden', 'Germany'] as string[],
-    group: ['series'] as string[],
+    // selectedItems: ['Sweden', 'Germany', 'US', 'EU27'] as string[],
+    group: ['cases'] as string[],
     smooth: '7',
-    series: [] as Series[],
+    cases: [] as Series[],
     fatalities: [] as Series[],    
     excess: [] as Series[],
     normal: [] as Series[],
     positive: [] as Series[],
     hospital: [] as Series[],
     slider: [0, 1] as [number, number],
+    rerender: false,
   };
 
   constructor(props: any) {
@@ -135,6 +137,14 @@ export class Main extends React.Component<MainProps> {
     // if (localSeries) {
     //   this.setState({ series: localSeries });
     // }
+  }
+
+  setSelectedItems = (selectedItems: string[]) => {
+    this.props.history.push({
+      search: '?' + selectedItems.map(s => 'selectedItems=' + s).join('&')
+    });
+
+    this.setState({ selectedItems });
   }
 
   selectViz = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -148,10 +158,12 @@ export class Main extends React.Component<MainProps> {
   }
 
   selectGroup = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const group = event.target.value.split(',');
-    // console.log('group', group);
+    let group = event.target.value.split(',');
+    if (group.includes('correlate')) {
+      group = group.concat(['cases', 'fatalities']);
+    }  
 
-    if (group.includes('series') && this.state.series.length < 1) {
+    if (group.includes('cases') && this.state.cases.length < 1) {
       this.loadCases();
     }
     if (group.includes('fatalities') && this.state.fatalities.length < 1) {
@@ -170,11 +182,30 @@ export class Main extends React.Component<MainProps> {
       this.loadHospital();
     }
 
-    this.setState({ group });
+    this.props.history.push({
+      search: this.props.location.search,
+      pathname: '/' + group[0]
+    });
+    // this.setState({ group });
   }
 
   componentDidMount() {
-    this.loadCases();  
+    const value = this.props.location.pathname.split('/')[1];
+
+    this.selectGroup({ target: { value }} as React.ChangeEvent<HTMLSelectElement>);
+
+    console.log('this.props.location.search', this.props.location.search);
+
+    if (this.props.location.search.selectedItems?.length < 1) {
+      console.log('gurkburk');
+      this.props.history.push({
+        search: '?selectedItems=Sweden&selectedItems=Germany&selectedItems=EU27&selectedItems=US'
+      });
+    }
+
+    // console.log('load', this.props.location);
+
+    // this.loadCases();  
   }
 
   loadCases = () => {
@@ -190,7 +221,7 @@ export class Main extends React.Component<MainProps> {
         console.log('time', moment().valueOf() - time.valueOf());
 
         this.setState({
-          series: response,
+          cases: response,
         });
       });
   }
@@ -312,22 +343,31 @@ export class Main extends React.Component<MainProps> {
 
   render() {
     // console.log('state', this.state);
+    // console.log('location', this.props.location);
 
-    const group = (this.state[this.state.group[0]] as Series[])
-    //   .map(s => ({
-    //     ...s,
-    //     data: smooth(s.data, +this.state.smooth),
-    //   }))
-      ;
+    const groupIndex = this.props.location.pathname.split('/')[1];
+    const modifiedGroupIndex = groupIndex === 'correlate' ? 'fatalities' : groupIndex;
+
+    let selectedItems: string[] = [];
+    const query = queryString.parse(this.props.location.search)?.selectedItems;
+    if (typeof query === 'string') {
+      selectedItems.push(query);
+    } else if (Array.isArray(query)) {
+      selectedItems = selectedItems.concat(query);
+    }
+
+    console.log('search', queryString.parse(this.props.location.search));
+
+    let group = (this.state[modifiedGroupIndex] as Series[]);
 
     const smoothedSeries = group
-      .filter(s => this.state.selectedItems.includes(s.label))
+      .filter(s => selectedItems.includes(s.label))
       .map(s => ({
         ...s,
         data: smooth(s.data, +this.state.smooth),
       }));
 
-    const xAxis = xAxisObj[this.state.group[0]];
+    const xAxis = xAxisObj[groupIndex];
 
     const time = smoothedSeries.map(s => s.data.map(d => d.t.valueOf())).reduce((a, b) => a.concat(b), []);
     const min = Math.min(...time);
@@ -346,12 +386,13 @@ export class Main extends React.Component<MainProps> {
           >
             <div className="bp3-select">
               <select
-                value={this.state.group}
+                value={groupIndex}
                 onChange={this.selectGroup}  
               >
-                <option value="series">Cases</option>
+                <option value="cases">Cases</option>
                 <option value="fatalities">COVID Fatalities</option>
                 {/* <option value="series,fatalities">Cases & Fatalities</option> */}
+                <option value="correlate">Correlate Cases & Fatalities</option>
                 <option value="positive">Testing Positive Rate</option>
                 <option value="hospital">ICU Admissions</option>
                 <option value="excess">Excess Fatalities</option>
@@ -396,50 +437,65 @@ export class Main extends React.Component<MainProps> {
             </div>
           </FormGroup>
         </ResponsiveGridLayout>
-        {this.state.vizType === 'map'
-          ? null
-          : [<FormGroup
-            data-grid={{x: 3, y: 0, w: 5, h: 2, static: true}}
-            key="regions"
-            label="Regions"
-            labelFor="regions"
-          >
-            <SelectChartItems
-              smooth={this.state.smooth}
-              items={group}
-              selectedItems={this.state.selectedItems}
-              onSelection={selectedItems => this.setState({ selectedItems })}
-            />
-          </FormGroup>,
-          <FormGroup key="slider">
-            <RangeSlider
-              min={0}
-              max={1}
-              stepSize={0.02}
-              labelRenderer={false}
-              onChange={slider => this.setState({ slider })}
-              value={this.state.slider}
-              vertical={false}
-            />
-          </FormGroup>
-        ]}
-        {group.length > 0
-          ? this.state.vizType === 'map' ? <Map
-            width={window.innerWidth}
-            height={window.innerHeight - 200}
-            series={group}
-            smooth={+this.state.smooth}
+        <Switch>
+          <Route path="/correlate">
+            <CrossGraph
+              smoothing={this.state.smooth}
+              cases={this.state.cases}
+              fatalities={this.state.fatalities}
+              selectedItems={selectedItems}
+              onSelection={this.setSelectedItems}
           />
-          : <Chart
-              series={smoothedSeries}
-              smooth={+this.state.smooth}
-              slice={slice}
-              xAxis={xAxis}
-              annotations={this.state.group.includes('series') && !isNaN(+this.state.smooth)}
-          />
-          : <Spinner/>
-        }
+          </Route>
+          <Route path="/">
+            {this.state.vizType === 'map'
+              ? null
+              : [<FormGroup
+                data-grid={{x: 3, y: 0, w: 5, h: 2, static: true}}
+                key="regions"
+                label="Regions"
+                labelFor="regions"
+              >
+                <SelectChartItems
+                  smooth={this.state.smooth}
+                  items={group}
+                  selectedItems={selectedItems}
+                  onSelection={this.setSelectedItems}
+                />
+              </FormGroup>,
+            ]}
+            <FormGroup key="slider">
+              <RangeSlider
+                min={0}
+                max={1}
+                stepSize={0.02}
+                labelRenderer={false}
+                onChange={slider => this.setState({ slider })}
+                value={this.state.slider}
+                vertical={false}
+              />
+            </FormGroup>
+            {group.length > 0
+              ? this.state.vizType === 'map' ? <Map
+                width={window.innerWidth}
+                height={window.innerHeight - 200}
+                series={group}
+                smooth={+this.state.smooth}
+              />
+              : <Chart
+                  series={smoothedSeries}
+                  smooth={+this.state.smooth}
+                  slice={slice}
+                  xAxis={xAxis}
+                  annotations={this.state.group.includes('series') && !isNaN(+this.state.smooth)}
+              />
+              : <Spinner/>
+            }
+          </Route>
+        </Switch>
       </div>
     );
   }
 }
+
+export default withRouter(Main);

@@ -80,16 +80,16 @@ export default class SelectChartItems extends React.Component<Props> {
     }
     
     return (
-    <MenuItem
-        active={modifiers.active}
-        icon={this.isSelected(item) ? 'tick' : 'blank'}
-        key={item.label}
-        // label={film.year.toString()}
-        onClick={handleClick}
-        text={item.label}
-        label={'' + Math.round(item.total)}
-        shouldDismissPopover={false}
-    />
+      <MenuItem
+          active={modifiers.active}
+          icon={this.isSelected(item) ? 'tick' : 'blank'}
+          key={item.label}
+          // label={film.year.toString()}
+          onClick={handleClick}
+          text={item.label}
+          label={'' + Math.round(item.total)}
+          shouldDismissPopover={false}
+      />
     );
   }
 

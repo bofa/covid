@@ -1,8 +1,28 @@
-const A = Array.from({length: 1000}, () => Math.random() - 0.5);
-const B = [0, 0, ...A.slice(2)];
+export function xcorr(A: number[], B: number[], size: number = 20) {
+    const mA = A.reduce((sum, a) => sum + a) / A.length;
+    const mB = B.reduce((sum, b) => sum + b) / B.length;
 
-export function xcorr(size: number = 20) {
-    const output = Array.from({length: size}, (_, m) => A.slice(m).reduce((acc, a, i) => a * B[i]));
+    // const vA = A.reduce((sum, a) => sum + (a - mA) ** 2, 0);
+    // const vB = B.reduce((sum, b) => sum + (b - mB) ** 2, 0);
 
-    return output;
+    const positive = Array.from({ length: size }, (_, m) => {
+        console.log('m', m, A.slice(m));
+
+        return {
+            x: m, 
+            y: A.slice(m).reduce((acc, a, i) => acc + (a - mA) * (B[i] - mB), 0)
+        };
+    });
+
+    // return positive;
+
+    const negative = Array.from({ length: size }, (_, m) => {
+
+        return {
+            x: -m, 
+            y: B.slice(m).reduce((acc, b, i) => acc + (A[i] - mA) * (b - mB), 0)
+        };
+    });
+
+    return negative.slice(1).reverse().concat(positive);
 }
