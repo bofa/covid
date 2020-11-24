@@ -10,8 +10,9 @@ import { Responsive, WidthProvider } from 'react-grid-layout';
 // const neatCsv = require('neat-csv');
 // import csvParse from 'csv-parse';
 import * as Papa from 'papaparse';
-import queryString from 'query-string';
 import { Map } from './Map';
+
+const queryString = require('query-string');
 
 function groupBy(xs: any[][], key: number |  string) {
   const obj = xs
@@ -157,7 +158,7 @@ class Main extends React.Component<MainProps> {
     this.setState({ vizType });
   }
 
-  selectGroup = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  selectGroup = (event: React.ChangeEvent<HTMLSelectElement>, search: string | null = null) => {
     let group = event.target.value.split(',');
     if (group.includes('correlate')) {
       group = group.concat(['cases', 'fatalities']);
@@ -183,29 +184,20 @@ class Main extends React.Component<MainProps> {
     }
 
     this.props.history.push({
-      search: this.props.location.search,
+      search: search ? search : this.props.location.search,
       pathname: '/' + group[0]
     });
-    // this.setState({ group });
   }
 
   componentDidMount() {
+    const search = this.props.location.search
+      ? this.props.location.search
+      : '?selectedItems=Sweden&selectedItems=Germany&selectedItems=EU27&selectedItems=US';
+
     const value = this.props.location.pathname.split('/')[1];
-
-    this.selectGroup({ target: { value }} as React.ChangeEvent<HTMLSelectElement>);
-
-    console.log('this.props.location.search', this.props.location.search);
-
-    if (this.props.location.search.selectedItems?.length < 1) {
-      console.log('gurkburk');
-      this.props.history.push({
-        search: '?selectedItems=Sweden&selectedItems=Germany&selectedItems=EU27&selectedItems=US'
-      });
-    }
-
-    // console.log('load', this.props.location);
-
-    // this.loadCases();  
+    this.selectGroup({ target: { value }} as React.ChangeEvent<HTMLSelectElement>, search);
+    
+    this.loadCases();  
   }
 
   loadCases = () => {
@@ -345,18 +337,18 @@ class Main extends React.Component<MainProps> {
     // console.log('state', this.state);
     // console.log('location', this.props.location);
 
-    const groupIndex = this.props.location.pathname.split('/')[1];
+    let groupIndex = this.props.location.pathname.split('/')[1];
+    groupIndex = groupIndex ? groupIndex : 'cases';
     const modifiedGroupIndex = groupIndex === 'correlate' ? 'fatalities' : groupIndex;
 
     let selectedItems: string[] = [];
+
     const query = queryString.parse(this.props.location.search)?.selectedItems;
     if (typeof query === 'string') {
       selectedItems.push(query);
     } else if (Array.isArray(query)) {
       selectedItems = selectedItems.concat(query);
     }
-
-    console.log('search', queryString.parse(this.props.location.search));
 
     let group = (this.state[modifiedGroupIndex] as Series[]);
 

@@ -26,7 +26,7 @@ export default class SelectChartItems extends React.Component<Props> {
   shouldComponentUpdate(nextProps: Props) {
     const update = this.props.items.length !== nextProps.items.length
       || this.props.smooth !== nextProps.smooth
-      || this.props.selectedItems !== nextProps.selectedItems
+      || JSON.stringify(this.props.selectedItems) !== JSON.stringify(nextProps.selectedItems)
       ;
 
     return update;
