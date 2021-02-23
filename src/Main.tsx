@@ -14,7 +14,7 @@ import { Map } from './Map';
 
 const queryString = require('query-string');
 
-function groupBy(xs: any[][], key: number |  string) {
+function groupBy(xs: any[][], key: number | string): any[][] {
   const obj = xs
   .filter(row => row.length > 1)
   .reduce(function(rv: any, x: any) {
@@ -22,7 +22,7 @@ function groupBy(xs: any[][], key: number |  string) {
     return rv;
   }, {});
 
-  const returnArray = Object.values(obj);
+  const returnArray = Object.values(obj) as any[][];
 
   return returnArray;
 }
@@ -51,15 +51,14 @@ interface MainProps {
   location: any;
 }
 
-function massageExcessDeaths(response: any, parseIndex: number = 11) {
+function massageExcessDeaths(response: any, parseIndex: number = 15) {
   const parsed = Papa.parse(response.data).data as any[][];
   const label = parsed[1][0];
 
   const data = parsed.slice(1)
     .map(r => ({
       t: moment(r[4]),
-      y: r[parseIndex] / r[7] * 1000000
-        / (1 + moment(r[4]).diff(moment(r[3]), 'days')),
+      y: r[parseIndex] * 10 / 7,
     }))
     .filter(d => d.t.isValid && !isNaN(d.y));
 
@@ -110,7 +109,8 @@ export const xAxisObj = {
   excess: 'Fatalities per day per 1 million',
   normal: 'Fatalities per day per 1 million',
   positive: '% of testing positive',
-  hospital: 'Daily new ICU admissions per 1 million'
+  hospital: 'Daily new ICU admissions per 1 million',
+  vaccine: 'Daily vaccinations per 1 million'
 };
 
 class Main extends React.Component<MainProps> {
@@ -126,6 +126,7 @@ class Main extends React.Component<MainProps> {
     normal: [] as Series[],
     positive: [] as Series[],
     hospital: [] as Series[],
+    vaccine: [] as Series[],
     slider: [0, 1] as [number, number],
     rerender: false,
   };
@@ -161,6 +162,10 @@ class Main extends React.Component<MainProps> {
   selectGroup = (event: React.ChangeEvent<HTMLSelectElement>, search: string | null = null) => {
     let group = event.target.value.split(',');
     if (group.includes('correlate')) {
+      gtag('event', 'correlate', {
+        'event_category': 'chartType',
+      });
+
       group = group.concat(['cases', 'fatalities']);
     }  
 
@@ -181,6 +186,9 @@ class Main extends React.Component<MainProps> {
     }
     if (group.includes('hospital') && this.state.hospital.length < 1) {
       this.loadHospital();
+    }
+    if (group.includes('vaccine') && this.state.vaccine.length < 1) {
+      this.loadVaccine();
     }
 
     this.props.history.push({
@@ -215,6 +223,36 @@ class Main extends React.Component<MainProps> {
         this.setState({
           cases: response,
         });
+      });
+  }
+
+  loadVaccine = () => {
+    gtag('event', 'loadVaccine', {
+      'event_category': 'loadType',
+    });
+
+    axios.get('https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.csv')
+      .then(response => {
+        const parsed = Papa.parse(response.data).data as any[][];
+
+        const vaccine = groupBy(parsed.slice(1), 0)
+          // .filter(r => r[0] === 'Argentina')
+          .map(group => ({
+            label: group[0][0],
+            data: group.map((r: any) => ({
+                t: moment(r[2]),
+                // y: Number(r[6]),
+                // y: Number(r[5]),
+                y: Number(r[11]),
+              }))
+              .filter((d: any) => d.t.isValid && !isNaN(d.y) && d.y > 0)
+          }))
+          .filter(group => group.data.length > 0)
+          ;
+
+        console.log('vaccine', vaccine);
+
+        this.setState({ vaccine });
       });
   }
 
@@ -389,6 +427,7 @@ class Main extends React.Component<MainProps> {
                 <option value="hospital">ICU Admissions</option>
                 <option value="excess">Excess Fatalities</option>
                 <option value="normal">Total Fatalities</option>
+                <option value="vaccine">Vaccine</option>                
               </select>
             </div>
           </FormGroup>

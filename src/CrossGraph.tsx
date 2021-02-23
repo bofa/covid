@@ -8,6 +8,7 @@ import { smooth } from './Chart';
 import { Button, MenuItem, Slider } from '@blueprintjs/core';
 import { ItemPredicate, ItemRenderer, Select } from '@blueprintjs/select';
 import { Line } from 'react-chartjs-2';
+import { xcorr } from './xcorr';
 
 const RegionSelect = Select.ofType<Series>();
 
@@ -31,20 +32,21 @@ const filterSeries: ItemPredicate<Series> = (query: string, series: Series) => {
 };
 
 function normalize(series: Series, smoothLength: number, slice: number) {
-  const data = smooth(series.data, smoothLength).map(d => d.y);
+  const smoothed = smooth(series.data, smoothLength).map(d => d.y)
+    .slice(Math.max(0, slice));
+
   // const mean = data.reduce((sum, v) => sum + v) / data.length;
   // const std = data.reduce((sum, v) => sum + (v - mean) ** 2) ** 0.5;
   const mean = 0;
-  const std = Math.max(...data);
+  const std = Math.max(...smoothed);
 
-  const normal = data
-    .slice(slice + Math.max(0, slice))
+  const normal = smoothed
     .map(v => (v - mean) / std);
 
-  return normal;
+  return [normal, smoothed];
 }
 
-export const options: ChartOptions = {
+export const options1: ChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   scales: {
@@ -55,6 +57,24 @@ export const options: ChartOptions = {
       scaleLabel: {
         display: true,
       },
+    }]
+  },
+};
+
+export const options2: ChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    xAxes: [{
+      type: 'linear'
+    }],
+    yAxes: [{
+      scaleLabel: {
+        display: true,
+      },
+      // ticks: {
+      //   max: 0.2,
+      // }
     }]
   },
 };
@@ -70,11 +90,49 @@ interface CrossGraphProps {
 export default class CrossGraph extends React.Component<CrossGraphProps> {
 
   state = {
-    slider: 0,
+    timeOffset: -14,
+    sliceSlider: 0,
+    scaleSlider: 1,
   };
 
   constructor(props: any) {
     super(props);
+  }
+
+  selectRegion = (series: Series) => {
+    const label = series.label;
+    this.props.onSelection([label]);
+
+    const selectedSeries = label;
+    const casesSeries = this.props.cases.find(s => s.label === selectedSeries);
+    const fatalitiesSeries = this.props.fatalities.find(s => s.label === selectedSeries);
+
+    const timeOffset = this.state.timeOffset;
+
+    const smoothing = +this.props.smoothing;
+    const slice = this.state.sliceSlider;
+    
+    const [casesNormalized] = casesSeries
+      ? normalize(casesSeries, smoothing, slice + Math.max(0, timeOffset))
+      : [[], []];
+    
+    const [fatalitiesNormalized] = fatalitiesSeries
+      ? normalize(fatalitiesSeries, smoothing, slice + Math.max(0, -timeOffset))
+      : [[], []];
+
+    const tail = 30;
+    const delta = fatalitiesNormalized.length - casesNormalized.length;
+
+    const casesSum = casesNormalized
+      .slice().reverse().slice(Math.max(0, -delta), tail + Math.max(0, -delta)).reduce((s, c) => s + c, 0);
+    const fatalitiesSum = fatalitiesNormalized
+      .slice().reverse().slice(Math.max(0, delta), tail + Math.max(0, delta)).reduce((s, f) => s + f, 0);
+
+    const scaleSlider = casesSum / fatalitiesSum;
+
+    console.log('scaleSlider', scaleSlider);
+
+    this.setState({ scaleSlider });
   }
 
   render() {
@@ -89,46 +147,48 @@ export default class CrossGraph extends React.Component<CrossGraphProps> {
     //   return 'No Data';
     // }
 
-    const slider = this.state.slider;
+    const timeOffset = this.state.timeOffset;
 
     const smoothing = +this.props.smoothing;
-    const slice = 0;
+    const slice = this.state.sliceSlider;
     
-    const cases = casesSeries
-      ? normalize(casesSeries, smoothing, slice + Math.max(0, slider))
-      : [];
+    const [casesNormalized, casesSmoothed] = casesSeries
+      ? normalize(casesSeries, smoothing, slice + Math.max(0, timeOffset))
+      : [[], []];
     
-    const fatalities = fatalitiesSeries
-      ? normalize(fatalitiesSeries, smoothing, slice + Math.max(0, -slider))
-      : [];
+    const [fatalitiesNormalized, fatalitiesSmoothed] = fatalitiesSeries
+      ? normalize(fatalitiesSeries, smoothing, slice + Math.max(0, -timeOffset))
+      : [[], []];
 
-    // console.log('cases', cases);
-    // console.log('fatalities', fatalities);
-    
-    // const corr = xcorr(cases, fatalities, 100);
-    // console.log('corr', corr);
+    const fatalitiesFitted = fatalitiesNormalized.map(f => f * this.state.scaleSlider);
+
+    const corr = xcorr(
+      casesSmoothed,
+      fatalitiesSmoothed,
+      30
+    );
 
     const chartData1: ChartData = { datasets: [
       {
         label: 'Cases',
         borderColor: 'red',
         fill: false,
-        data: cases.map((v, i) => ({ x: i, y: v }))
+        data: casesNormalized.map((v, i) => ({ x: i, y: v }))
       },
       {
         label: 'Fatalities',
         borderColor: 'blue',
         fill: false,
-        data: fatalities.map((v, i) => ({ x: i, y: v }))
+        data: fatalitiesFitted.map((v, i) => ({ x: i, y: v }))
       }
     ]};
 
-    // const chartData2: ChartData = { datasets: [
-    //   {
-    //     label: 'xcorr',
-    //     data: corr
-    //   },
-    // ]};
+    const chartData2: ChartData = { datasets: [
+      {
+        label: 'Cross Covariance, time shift "correlation"',
+        data: corr
+      },
+    ]};
 
     // console.log('chartData', chartData);
 
@@ -138,21 +198,45 @@ export default class CrossGraph extends React.Component<CrossGraphProps> {
           itemPredicate={filterSeries}
           itemRenderer={itemRenderer}
           items={this.props.fatalities}
-          onItemSelect={(series: Series) => this.props.onSelection([series.label])}
+          onItemSelect={this.selectRegion}
         >
           <Button text={this.props.selectedItems[0]} rightIcon="double-caret-vertical" />
         </RegionSelect>
-        {slider}
+        <Slider
+          min={0}
+          max={casesSeries?.data.length}
+          stepSize={1}
+          labelRenderer={false}
+          onChange={sliceSlider => this.setState({ sliceSlider })}
+          value={this.state.sliceSlider}
+          vertical={false}
+        />
+        {timeOffset}
         <Slider
           min={-50}
           max={50}
           stepSize={1}
           labelRenderer={false}
-          onChange={slider => this.setState({ slider })}
-          value={this.state.slider}
+          onChange={timeOffset => this.setState({ timeOffset })}
+          value={timeOffset}
           vertical={false}
         />
-        <Line data={chartData1} options={options} />
+        {this.state.scaleSlider}
+        <Slider
+          min={0}
+          max={2}
+          stepSize={0.01}
+          labelRenderer={false}
+          onChange={scaleSlider => this.setState({ scaleSlider })}
+          value={this.state.scaleSlider}
+          vertical={false}
+        />
+        <div style={{ height: 340 }}>
+          <Line data={chartData1} options={options1} />
+        </div>
+        <div style={{ height: 340 }}>
+          <Line data={chartData2} options={options2} />
+        </div>
       </React.Fragment>
     );
   }
