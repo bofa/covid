@@ -38,7 +38,7 @@ function normalize(series: Series, smoothLength: number, slice: number) {
   // const mean = data.reduce((sum, v) => sum + v) / data.length;
   // const std = data.reduce((sum, v) => sum + (v - mean) ** 2) ** 0.5;
   const mean = 0;
-  const std = Math.max(...smoothed);
+  const std = 1; // Math.max(...smoothed);
 
   const normal = smoothed
     .map(v => (v - mean) / std);
@@ -160,7 +160,8 @@ export default class CrossGraph extends React.Component<CrossGraphProps> {
       ? normalize(fatalitiesSeries, smoothing, slice + Math.max(0, -timeOffset))
       : [[], []];
 
-    const fatalitiesFitted = fatalitiesNormalized.map(f => f * this.state.scaleSlider);
+    const fatalitiesFitted = fatalitiesNormalized
+      .map(f => f * this.state.scaleSlider);
 
     const corr = xcorr(
       casesSmoothed,
@@ -224,8 +225,8 @@ export default class CrossGraph extends React.Component<CrossGraphProps> {
         {this.state.scaleSlider}
         <Slider
           min={0}
-          max={2}
-          stepSize={0.01}
+          max={5 * Math.max(0, ...casesNormalized) / Math.max(0, ...fatalitiesNormalized)}
+          stepSize={1}
           labelRenderer={false}
           onChange={scaleSlider => this.setState({ scaleSlider })}
           value={this.state.scaleSlider}

@@ -41,15 +41,16 @@ export default class SelectChartItems extends React.Component<Props> {
 
     const sortedItems = this.props.items
       .map(s => {
+        // console.log('s', s);
         const data = smooth(s.data, +this.props.smooth);
         
         return {
           label: s.label,
           data,
-          total: data[data.length - 1].y,
+          total: [data[data.length - 1].y, data[data.length - 1].y / data[data.length - 14].y / 14],
         };
       })
-      .sort((v1, v2) => v2.total - v1.total);
+      .sort((v1, v2) => v2.total[0] - v1.total[0]);
 
     return (
       <SelectInstance
@@ -87,7 +88,7 @@ export default class SelectChartItems extends React.Component<Props> {
           // label={film.year.toString()}
           onClick={handleClick}
           text={item.label}
-          label={'' + Math.round(item.total)}
+          label={'' + Math.round(item.total[0]) + ', ' + Math.round(100 * item.total[1]) + '%'}
           shouldDismissPopover={false}
       />
     );

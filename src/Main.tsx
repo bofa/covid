@@ -243,7 +243,7 @@ class Main extends React.Component<MainProps> {
                 t: moment(r[2]),
                 // y: Number(r[6]),
                 // y: Number(r[5]),
-                y: Number(r[11]),
+                y: Number(r[13]),
               }))
               .filter((d: any) => d.t.isValid && !isNaN(d.y) && d.y > 0)
           }))
@@ -446,7 +446,7 @@ class Main extends React.Component<MainProps> {
                 <option value="2">2 Days</option>
                 <option value="7">Week</option>
                 <option value="14">2 Weeks</option>
-                <option value="30">Month</option>
+                <option value="28">Month</option>
                 <option value="cumulative">Cumulative</option>
               </select>
             </div>

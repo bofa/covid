@@ -26,7 +26,7 @@ export function smooth(list: { t: moment.Moment, y: number }[], size: number) {
       .map((v1, i1) => ({
         t: v1.t,
         y: list
-          .filter((_2, i2) => i2 <= i1 )
+          .filter((v2, i2) => i2 <= i1 )
           .map(({ y }) => y)
           .reduce((acc, v) => acc + v)
         }));

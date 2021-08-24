@@ -6,6 +6,14 @@ const Papa = require('papaparse');
 const baseUrl = 'https://raw.githubusercontent.com/Datagraver/Covid-19-base/main/';
 const afterMs = moment('2020-03-01').valueOf();
 
+function notEmpty<T>(value: T | null | undefined): value is T {
+  if (value === null || value === undefined) {
+    return false;
+  }
+  
+  return true;
+}
+
 // function hashString (input: string) {
 //   var hash = 0, i, chr;
 //   for (i = 0; i < input.length; i++) {
@@ -32,6 +40,10 @@ function massageCsv(csv: any[][], mappedRegions: { label: string, population: nu
       const label = c[0];
       const population = mappedRegions.find(region => region.label === label)?.population as number;
       
+      if (population < 0.1) {
+        return null;
+      }
+
       const data = c
         .slice(1)
         .map((r, i) => ({
@@ -52,6 +64,7 @@ function massageCsv(csv: any[][], mappedRegions: { label: string, population: nu
         total: data.reduce((sum: number, d: any) => sum + d.y, 0),
       };
     })
+    .filter(notEmpty)
     ;
 
   return series;
